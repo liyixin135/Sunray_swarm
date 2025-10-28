@@ -56,10 +56,12 @@ void RMTT_CONTROL::init(ros::NodeHandle& nh)
     rmtt_control_param.pid_yaw.integral = 0.0;
     rmtt_control_param.pid_yaw.prev_error = 0.0;
 
+    //无人机名字
     agent_name = "rmtt_" + std::to_string(agent_id);
     // 根据 pose_source 参数选择数据源
     if (pose_source == 1)
     {
+        //订阅话题，通过回调函数取数据
         // 【订阅】订阅动捕的定位数据(位置+速度) vrpn -> 本节点
         mocap_pos_sub = nh.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/" + agent_name + "/pose", 1, &RMTT_CONTROL::mocap_pos_cb, this);
         mocap_vel_sub = nh.subscribe<geometry_msgs::TwistStamped>("/vrpn_client_node/"+ agent_name + "/twist", 1, &RMTT_CONTROL::mocap_vel_cb, this);
@@ -67,6 +69,7 @@ void RMTT_CONTROL::init(ros::NodeHandle& nh)
     else if (pose_source == 2)
     {       
         // 【定时器】 通过TF获取定位地图的地位信息
+        //左边为定时器，每隔0.05s，调用一次回调函数
         timer_get_map_pose = nh.createTimer(ros::Duration(0.05), &RMTT_CONTROL::timercb_get_map_pose, this);
     }
     else if (pose_source == 3)
@@ -160,6 +163,7 @@ void RMTT_CONTROL::init(ros::NodeHandle& nh)
 void RMTT_CONTROL::mainloop()
 {
     // 定位数据丢失情况下，不执行控制指令并直接返回，直到动捕恢复
+    //定位数据丢失，所有命令速度全都为0
     if(!agent_state.odom_valid)
     {
         desired_vel.linear.x = 0.0;
@@ -198,8 +202,10 @@ void RMTT_CONTROL::mainloop()
         // HOLD：悬停模式，切入该模式的瞬间，无人机在当前位置悬停，并锁定该位置
         case sunray_swarm_msgs::agent_cmd::HOLD:
             // 悬停需要借助位置控制算法进行闭环控制
+            //悬停的时候期望位置读取的是当前位置
+            //通过输入位置，进行pid计算，得到速度控制指令，传值给desired_vel
             desired_vel = pos_control(desired_position, desired_yaw);
-            agent_cmd_vel_pub.publish(desired_vel);
+            agent_cmd_vel_pub.publish(desired_vel);//发布
             break;
 
         // POS_CONTROL：位置控制模式，无人机移动到期望的位置+偏航（期望位置由外部指令赋值）
@@ -247,6 +253,7 @@ void RMTT_CONTROL::mainloop()
 void RMTT_CONTROL::agent_cmd_cb(const sunray_swarm_msgs::agent_cmd::ConstPtr& msg)
 {
     // 如果地面站接管了，且收到的话题不是来自于地面站的指令，则直接退出
+    //就是地面站接管的情况下忽视所有其他来自不是地面站的指令
     if(gs_control && msg->cmd_source != "sunray_station")
     {
         return;
@@ -258,6 +265,7 @@ void RMTT_CONTROL::agent_cmd_cb(const sunray_swarm_msgs::agent_cmd::ConstPtr& ms
         return;
     }
 
+    //current_agent_cmd是agent_cmd同个消息类型
     current_agent_cmd = *msg;
 
     // 处理收到的控制指令
@@ -270,12 +278,14 @@ void RMTT_CONTROL::agent_cmd_cb(const sunray_swarm_msgs::agent_cmd::ConstPtr& ms
 // 但是就算是这样，地面站发送除了起飞降落之外指令，还是会被ORCA算法占用，因此正常一般是要先暂停ORCA算法
 void RMTT_CONTROL::agent_gs_cmd_cb(const sunray_swarm_msgs::agent_cmd::ConstPtr& msg)
 {
+    //如果id不对就返回，99是默认控制所有机体
     if(msg->agent_id != agent_id && msg->agent_id != 99)
     {
         return;
     } 
 
     // 停止接管
+    //GS_CONTROL表示地面站停止接管
     if(msg->control_state == sunray_swarm_msgs::agent_cmd::GS_CONTROL)
     {
         gs_control = false;
@@ -285,23 +295,35 @@ void RMTT_CONTROL::agent_gs_cmd_cb(const sunray_swarm_msgs::agent_cmd::ConstPtr&
         gs_control = true;
     }
 
+    //current_agent_cmd是agent_cmd同个消息类型
     current_agent_cmd = *msg;
 
     // 处理收到的控制指令
+    //这里是为了防止命令中断，并没有control_state为GS_CONTROL的case情况
     handle_cmd(current_agent_cmd);
 }
 
 void RMTT_CONTROL::handle_cmd(const sunray_swarm_msgs::agent_cmd msg)
 {
     // 根据收到控制指令进行相关处理
+    //对应不同的state进入不同的处理方式
+//   control_state控制指令枚举
+//      uint8 INIT = 0                      ## 初始化：不执行任何操作
+//      uint8 HOLD = 1                      ## 悬停：无人机悬停在当前点，无人车停止移动
+//      uint8 POS_CONTROL = 2               ## 位置控制：惯性系（世界坐标系）中，移动到指定点和指定偏航角，需要配合desired_pos和desired_yaw
+//      uint8 VEL_CONTROL_BODY = 3          ## 机体系速度控制：机体系中，按照指定的速度移动，需要配合desired_vel（包括线速度和角速度）
+//      uint8 VEL_CONTROL_ENU = 4           ## 位置控制：惯性系中，按照指定的速度和指定的偏航角移动，需要配合desired_vel和desired_yaw
+//      uint8 TAKEOFF = 11                  ## 起飞：仅针对无人机
+//      uint8 LAND = 12                     ## 降落：仅针对无人机
+//      uint8 GS_CONTROL = 99               ## 地面站停止接管
     switch(msg.control_state) 
     {
-        // 收到INIT指令
+        // 收到INIT指令，只是打印了信息
         case sunray_swarm_msgs::agent_cmd::INIT:
             text_info.data = node_name + ": rmtt_" + to_string(agent_id) + " Get agent_cmd: INIT!";
             cout << BLUE << text_info.data << TAIL << endl;
             break;
-        // 收到HOLD指令
+        // 收到HOLD指令，表示悬停，函数内部直接读取当前位置作为期望位置
         case sunray_swarm_msgs::agent_cmd::HOLD:
             // 将智能体当前的点设置为期望点
             set_desired_position();
@@ -311,6 +333,7 @@ void RMTT_CONTROL::handle_cmd(const sunray_swarm_msgs::agent_cmd msg)
         // 收到POS_CONTROL指令
         case sunray_swarm_msgs::agent_cmd::POS_CONTROL:
             // 将命令中的位置赋值到内部变量desired_position和desired_yaw
+            //将订阅到的期望xy（平面点）、z点和yaw角复制到期望位置和期望角度
             desired_position.x = msg.desired_pos.x;
             desired_position.y = msg.desired_pos.y;
             desired_position.z = agent_height;
@@ -319,45 +342,55 @@ void RMTT_CONTROL::handle_cmd(const sunray_swarm_msgs::agent_cmd msg)
             // cout << BLUE << "POS_REF [X Y Z] : " << desired_position.x   << " [ m ] " << desired_position.y   << " [ m ] " << desired_position.z   << " [ m ] " << TAIL << endl;
             // cout << BLUE << text_info.data << TAIL << endl;
             break;
-        // 收到VEL_CONTROL_BODY指令：此处不做任何处理，在主循环中处理
+        // 收到VEL_CONTROL_BODY指令：此处不做任何处理，在主循环中处理（官方开源已经全注释掉了）
+        //机体系中，按照指定的速度移动，需要配合desired_vel
         case sunray_swarm_msgs::agent_cmd::VEL_CONTROL_BODY:
             // text_info.data = node_name + ": rmtt_" + to_string(agent_id) + " Get agent_cmd: VEL_CONTROL_BODY!";
             // cout << BLUE << text_info.data << TAIL << endl;
             break;
-        // 收到VEL_CONTROL_ENU指令：此处不做任何处理，在主循环中处理
+        // 收到VEL_CONTROL_ENU指令：此处不做任何处理，在主循环中处理（官方开源已经全注释掉了）
+        //惯性系中，按照指定的速度和指定的偏航角移动
         case sunray_swarm_msgs::agent_cmd::VEL_CONTROL_ENU:
             // text_info.data = node_name + ": rmtt_" + to_string(agent_id) + " Get agent_cmd: VEL_CONTROL_ENU!";
             // cout << BLUE << text_info.data << TAIL << endl;
             break;
         // 收到TAKEOFF指令，直接执行（在此处中断处理的原因是防止其他节点发送其他指令打断该指令）
+        //起飞
         case sunray_swarm_msgs::agent_cmd::TAKEOFF:
             text_info.data = node_name + ": rmtt_" + to_string(agent_id) + " Get agent_cmd: TAKEOFF!";
             cout << BLUE << text_info.data << TAIL << endl;
             // home point
+            //设置当前位置为起飞点，飞机当前yaw朝向为起飞朝向
             home_position.x = agent_state.pos[0];
             home_position.y = agent_state.pos[1];
-            home_position.z = 0.0;
+            home_position.z = 0.0;//地面起飞点统一设置为0
             home_yaw = agent_state.att[2];
             // 起飞
-            takeoff_pub.publish(takeoff); 
+            //向起飞话题发布起飞指令，触发无人机起飞
+            takeoff_pub.publish(takeoff);
+            //无人机的状态更新为起飞中
             agent_state.control_state = sunray_swarm_msgs::agent_cmd::TAKEOFF;
+            //发布无人机状态
             agent_state_pub.publish(agent_state);
             //将标志位置为false，以便demo直接运行
             gs_control = false;
             // 等待飞机起飞，此时不能发送其他指令
+            //多次重复相当与等待无人机从地面上升到安全高度，同时不断更新状态信息（通过订阅话题
+            ros::spinOnce();//处理一次回调队列，去订阅消息
+            sleep(1.0);//暂停疫苗
             ros::spinOnce();
             sleep(1.0);
             ros::spinOnce();
             sleep(1.0);
             ros::spinOnce();
             sleep(1.0);
-            ros::spinOnce();
-            sleep(1.0);
-            // 起飞后进入悬停状态，并设定起飞点上方为悬停点
+            // 起飞后进入悬停状态，并设定起飞点上方为悬停点（设置当前位置为期望位置）
             set_desired_position();
+            //将状态转换为悬停状态
             current_agent_cmd.control_state = sunray_swarm_msgs::agent_cmd::HOLD;
             break;
         // 收到LAND指令，直接执行（在此处中断处理的原因是防止其他节点发送其他指令打断该指令）
+        //降落
         case sunray_swarm_msgs::agent_cmd::LAND:
             text_info.data = node_name + ": rmtt_" + to_string(agent_id) + " Get agent_cmd: LAND!";
             cout << BLUE << text_info.data << TAIL << endl;
@@ -373,6 +406,7 @@ void RMTT_CONTROL::handle_cmd(const sunray_swarm_msgs::agent_cmd msg)
             current_agent_cmd.control_state = sunray_swarm_msgs::agent_cmd::INIT;
             break;
         default:
+            //状态如果不属于规定好的状态，默认是认为错误
             text_info.data = node_name + ": rmtt_" + to_string(agent_id) + " Get agent_cmd: Wrong!";
             cout << RED << text_info.data << TAIL << endl;
             break;
@@ -406,8 +440,10 @@ double RMTT_CONTROL::get_yaw_error(double desired_yaw, double yaw_now)
 float RMTT_CONTROL::pid_control(PIDController& pid, float setpoint, float current_value, float dt)
 {
     float error = setpoint - current_value;
+    //如果误差比较小，在绝对值0.25以内
     if((error>=-0.25) && (error<=0.25))
    {
+        //integral一开始赋值为0,误差比较小的时候就开始累计积分，但是积分一旦大于2.5就清零重新积分
      if((pid.integral>=-2.5)&&(pid.integral<=2.5))
      {
         pid.integral += error * dt;
@@ -417,30 +453,41 @@ float RMTT_CONTROL::pid_control(PIDController& pid, float setpoint, float curren
    {
      pid.integral = 0;
    }
+   //算微分
     float derivative = (error - pid.prev_error) / dt;
+    //当误差很小的时候
   if(fabs(error)<=0.1)
   {
+     //微分项等于微分*根号下error，目的是为了保留一定的响应，防止震荡
+     //本质就是误差小的时候，去削弱d项
      derivative = derivative*sqrtf(fabs(error));
   }
+  //保留上一时间的error
     pid.prev_error = error;
+    //pid计算公式
     return pid.Kp * error + pid.Ki * pid.integral + pid.Kd * derivative;
 }
 
 // 位置控制算法
 geometry_msgs::Twist RMTT_CONTROL::pos_control(geometry_msgs::Point pos_ref, double yaw_ref)
 {
-    float cmd_body[2];
-    float cmd_enu[2];
+    float cmd_body[2];//在机体坐标系下的xy控制量
+    float cmd_enu[2];//在世界坐标系下的xy控制量
     float dt = 0.1; 
     // 控制指令计算：使用PID控制 - XY
+    //pos_ref.x期望位置x，agent_state.pos[0]实际位置x，算出来cmd_enu，这是pid公式的得数（y同理）
     cmd_enu[0] = pid_control(rmtt_control_param.pid_xy, pos_ref.x, agent_state.pos[0], dt);
     cmd_enu[1] = pid_control(rmtt_control_param.pid_xy, pos_ref.y, agent_state.pos[1], dt);
-    rotation_yaw(agent_state.att[2], cmd_body, cmd_enu);             
+    //cmd_enu为平面xy算出来pid的输出，agent_state.att[2]为机体的实际yaw
+    //输入世界坐标系下的 XY 控制指令，根据无人机当前航向（Yaw）旋转，输出机体坐标系下的 XY 控制指令
+    rotation_yaw(agent_state.att[2], cmd_body, cmd_enu);
+    //转换完成后复制给期望速度
     desired_vel.linear.x = cmd_body[0];
     desired_vel.linear.y = cmd_body[1];
     // 控制指令计算：使用PID控制 - Z
     desired_vel.linear.z = pid_control(rmtt_control_param.pid_z, agent_height, agent_state.pos[2], dt);
     // YAW误差计算
+    //yaw_ref期望yaw值，agent_state.att[2]实际yaw值
     double yaw_error = get_yaw_error(yaw_ref, agent_state.att[2]);
     // 控制指令计算：使用PID控制 - YAW
     desired_vel.angular.z = pid_control(rmtt_control_param.pid_yaw,  yaw_error, 0.0, dt);
@@ -457,8 +504,11 @@ geometry_msgs::Twist RMTT_CONTROL::pos_control(geometry_msgs::Point pos_ref, dou
 }
 
 // 【坐标系旋转函数】- enu系到body系
+//从世界坐标系转为机体坐标系
 void RMTT_CONTROL::rotation_yaw(double yaw_angle, float body_frame[2], float enu_frame[2])
 {
+    //计算公式采用的是矩阵的思想，来自旋转矩阵
+    ////有时间去学一下旋转矩阵
     body_frame[0] = enu_frame[0] * cos(yaw_angle) + enu_frame[1] * sin(yaw_angle);
     body_frame[1] = -enu_frame[0] * sin(yaw_angle) + enu_frame[1] * cos(yaw_angle);
 }
@@ -473,6 +523,7 @@ geometry_msgs::Twist RMTT_CONTROL::enu_to_body(geometry_msgs::Twist enu_cmd)
     float dt = 0.1; 
     cmd_enu[0] = enu_cmd.linear.x;
     cmd_enu[1] = enu_cmd.linear.y;
+    //转换到机体坐标系上
     rotation_yaw(agent_state.att[2], cmd_body, cmd_enu);   
     body_cmd.linear.x = cmd_body[0];
     body_cmd.linear.y = cmd_body[1];
@@ -493,6 +544,7 @@ geometry_msgs::Twist RMTT_CONTROL::enu_to_body(geometry_msgs::Twist enu_cmd)
     body_cmd.linear.z = constrain_function(body_cmd.linear.z, rmtt_control_param.max_vel_z, 0.0);
     body_cmd.angular.z = constrain_function(body_cmd.angular.z, rmtt_control_param.max_vel_yaw, rmtt_control_param.deadzone_vel_yaw);
 
+    //把机体坐标系下的控制指令传输出来
     return body_cmd;
 }
 
@@ -504,6 +556,7 @@ void RMTT_CONTROL::timercb_debug(const ros::TimerEvent &e)
         return;
     }
     cout << GREEN << ">>>>>>>>>>>>>> RMTT [" << agent_id << "] Control ";
+    //对输出数据格式做一些调整限制
     //固定的浮点显示
     cout.setf(ios::fixed);
     // setprecision(n) 设显示小数精度为n位
@@ -594,44 +647,53 @@ void RMTT_CONTROL::timercb_state(const ros::TimerEvent &e)
     agent_state.header.stamp = ros::Time::now();
 
     // 如果电池数据获取超时1秒，则认为智能体driver挂了
+    //get_battery_time是一个话题订阅实时数据而来
     if((ros::Time::now() - get_battery_time).toSec() > 1.0)
     {
         agent_state.connected = false;
     }
 
     // 如果位姿数据获取超时，则认为odom失效了
-    if((ros::Time::now() - get_odom_time).toSec() > ODOM_TIMEOUT)
+    if((ros::Time::now() - get_odom_time).toSec() > ODOM_TIMEOUT)//define ODOM_TIMEOUT 0.35
     {
         agent_state.odom_valid = false;
     }
 
+    //等式左右的消息类型不一致，但是都内含control_state
     agent_state.control_state = current_agent_cmd.control_state;
     agent_state.cmd_vel = desired_vel;
-    agent_state_pub.publish(agent_state);
+    agent_state_pub.publish(agent_state);//将话题发布出去
 }
 
 // 回调函数：动捕
 void RMTT_CONTROL::mocap_pos_cb(const geometry_msgs::PoseStampedConstPtr& msg)
 {
     get_odom_time = ros::Time::now(); // 记录时间戳，防止超时
+    //agent_state是自定义消息类型，用来获取动捕信息，这里获取xyz
 	agent_state.pos[0] = msg->pose.position.x;
     agent_state.pos[1] = msg->pose.position.y;
 	agent_state.pos[2] = msg->pose.position.z;
+    //获取四元素
     agent_state.attitude_q = msg->pose.orientation;
 
+    //提取四元素
     Eigen::Quaterniond q_mocap = Eigen::Quaterniond(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
+    //将四元素转换为欧拉角
     Eigen::Vector3d agent_att = quaternion_to_euler(q_mocap);
 
+    //读取roll pitch yaw
 	agent_state.att[0] = agent_att.x();
     agent_state.att[1] = agent_att.y();
 	agent_state.att[2] = agent_att.z();
 
+    //是否获取动捕信息参数为确认（因为进入回调函数就是读到了话题）
     agent_state.odom_valid = true;
 }
 
 // 回调函数：动捕
 void RMTT_CONTROL::mocap_vel_cb(const geometry_msgs::TwistStampedConstPtr& msg)
 {
+    //获取动捕系统里面刚体的速度
 	agent_state.vel[0] = msg->twist.linear.x;
     agent_state.vel[1] = msg->twist.linear.y;
 	agent_state.vel[2] = msg->twist.linear.z;
@@ -659,6 +721,8 @@ void RMTT_CONTROL::odom_cb(const nav_msgs::OdometryConstPtr& msg)
     agent_state.odom_valid = true;
 }
 
+//回调函数，tf形式，先实现从地图框架到程序框架的tf变换，然后从地图tf获取xyz，转换为程序框架赋值到agent_state（自定义消息类型）
+//再获取tf转换后的四元素转换为欧拉角，并读取roll pitch yaw（注意欧拉角不需要进行tf变换）
 void RMTT_CONTROL::timercb_get_map_pose(const ros::TimerEvent &e)
 {
     // 设定地图框架和程序框架的名称
@@ -686,11 +750,11 @@ void RMTT_CONTROL::timercb_get_map_pose(const ros::TimerEvent &e)
 
         agent_state.odom_valid = true;
     }
-    catch (const tf2::TransformException& ex)
+    catch (const tf2::TransformException& ex//这是 C++ 的异常处理语法，用来捕获 tf2 库抛出的所有变换相关异常
     {
         text_info.data = node_name + ": rmtt_" + to_string(agent_id) + " map tf error!";
         text_info_pub.publish(text_info);
-        cout << RED << text_info.data << TAIL << endl;
+        cout << RED << text_info.data << TAIL << endl;//终端打印报错信息
     }
 }
 
@@ -733,26 +797,26 @@ void RMTT_CONTROL::timercb_rviz(const ros::TimerEvent &e)
 {
     // 发布智能体位置marker
     visualization_msgs::Marker rmtt_marker;
-    rmtt_marker.header.frame_id = "world";
+    rmtt_marker.header.frame_id = "world";//设置参考坐标系
     rmtt_marker.header.stamp = ros::Time::now();
-    rmtt_marker.ns = "mesh";
-    rmtt_marker.id = 0;
-    rmtt_marker.type = visualization_msgs::Marker::MESH_RESOURCE;
-    rmtt_marker.scale.x = 0.04;  
+    rmtt_marker.ns = "mesh";//命名空间为mesh
+    rmtt_marker.id = 0;//Marker ID
+    rmtt_marker.type = visualization_msgs::Marker::MESH_RESOURCE;//Mesh类型
+    rmtt_marker.scale.x = 0.04;  //缩放比例
     rmtt_marker.scale.y = 0.04;  
     rmtt_marker.scale.z = 0.04;  
-    rmtt_marker.action = visualization_msgs::Marker::ADD;
-    rmtt_marker.pose.position.x = agent_state.pos[0];
+    rmtt_marker.action = visualization_msgs::Marker::ADD;//添加或更新Marker
+    rmtt_marker.pose.position.x = agent_state.pos[0];//设置仿真位置为无人机实际位置
     rmtt_marker.pose.position.y = agent_state.pos[1];
     rmtt_marker.pose.position.z = agent_state.pos[2];
-    rmtt_marker.pose.orientation.w = agent_state.attitude_q.w;
+    rmtt_marker.pose.orientation.w = agent_state.attitude_q.w;//设置姿态四元素，为无人机实际四元素
     rmtt_marker.pose.orientation.x = agent_state.attitude_q.x;
     rmtt_marker.pose.orientation.y = agent_state.attitude_q.y;
     rmtt_marker.pose.orientation.z = agent_state.attitude_q.z;
-    rmtt_marker.color = led_color;
+    rmtt_marker.color = led_color;//设置颜色
     rmtt_marker.mesh_use_embedded_materials = false;
-    rmtt_marker.mesh_resource = std::string("package://sunray_swarm/meshes/tello.dae");
-    rmtt_mesh_pub.publish(rmtt_marker);
+    rmtt_marker.mesh_resource = std::string("package://sunray_swarm/meshes/tello.dae");//采用所示路径的模型（dae）
+    rmtt_mesh_pub.publish(rmtt_marker);//发布Marker
 
     // 发布智能体运动轨迹，用于rviz显示
     geometry_msgs::PoseStamped uav_pos;
@@ -762,25 +826,25 @@ void RMTT_CONTROL::timercb_rviz(const ros::TimerEvent &e)
     uav_pos.pose.position.y = agent_state.pos[1];
     uav_pos.pose.position.z = agent_state.pos[2];
     uav_pos.pose.orientation = agent_state.attitude_q;
-    pos_vector.insert(pos_vector.begin(), uav_pos);
-    if (pos_vector.size() > TRA_WINDOW)
+    pos_vector.insert(pos_vector.begin(), uav_pos);//将当前位置插入轨迹向量开头
+    if (pos_vector.size() > TRA_WINDOW)//保持轨迹长度在窗口范围内,#define TRA_WINDOW 50
     {
         pos_vector.pop_back();
     }
     nav_msgs::Path uav_trajectory;
     uav_trajectory.header.stamp = ros::Time::now();
     uav_trajectory.header.frame_id = "world";
-    uav_trajectory.poses = pos_vector;
-    rmtt_trajectory_pub.publish(uav_trajectory);
+    uav_trajectory.poses = pos_vector;//设置轨迹点序列
+    rmtt_trajectory_pub.publish(uav_trajectory);//发布路径
 
-    // 发布当前执行速度的方向箭头
+    // 发布当前执行速度的方向箭头，可视化速度向量
     geometry_msgs::TwistStamped vel_rviz;
     vel_rviz.header.stamp = ros::Time::now();
-    vel_rviz.header.frame_id = agent_name + "/base_link";
-    vel_rviz.twist.linear.x = desired_vel.linear.x;
+    vel_rviz.header.frame_id = agent_name + "/base_link";//相对于无人机自身坐标系
+    vel_rviz.twist.linear.x = desired_vel.linear.x;//线速度
     vel_rviz.twist.linear.y = desired_vel.linear.y;
     vel_rviz.twist.linear.z = desired_vel.linear.z;
-    vel_rviz.twist.angular.x = desired_vel.angular.x;
+    vel_rviz.twist.angular.x = desired_vel.angular.x;//角速度
     vel_rviz.twist.angular.y = desired_vel.angular.y;
     vel_rviz.twist.angular.z = desired_vel.angular.z;
     vel_rviz_pub.publish(vel_rviz);
@@ -794,19 +858,19 @@ void RMTT_CONTROL::timercb_rviz(const ros::TimerEvent &e)
         goal_marker.header.stamp = ros::Time::now();
         goal_marker.ns = "goal";
         goal_marker.id = agent_id;
-        goal_marker.type = visualization_msgs::Marker::SPHERE;
+        goal_marker.type = visualization_msgs::Marker::SPHERE;//目标点用球表示
         goal_marker.action = visualization_msgs::Marker::ADD;
-        goal_marker.pose.position.x = current_agent_cmd.desired_pos.x;
+        goal_marker.pose.position.x = current_agent_cmd.desired_pos.x;//目标位置
         goal_marker.pose.position.y = current_agent_cmd.desired_pos.y;
         goal_marker.pose.position.z = agent_height;
-        goal_marker.pose.orientation.x = 0.0;
+        goal_marker.pose.orientation.x = 0.0;//四元素确定朝向
         goal_marker.pose.orientation.y = 0.0;
         goal_marker.pose.orientation.z = 0.0;
         goal_marker.pose.orientation.w = 1.0;
-        goal_marker.scale.x = 0.2;
+        goal_marker.scale.x = 0.2;//尺寸
         goal_marker.scale.y = 0.2;
         goal_marker.scale.z = 0.2;
-        goal_marker.color = led_color;
+        goal_marker.color = led_color;//与无人机颜色一致
         goal_marker.mesh_use_embedded_materials = false;
         goal_point_pub.publish(goal_marker);
     }
