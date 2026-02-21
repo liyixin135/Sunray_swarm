@@ -2,7 +2,7 @@
     
 void UGV_CONTROL::init(ros::NodeHandle& nh)
 {
-    // 智能体类型
+    // 智能体类型，确定是无人车
     agent_type = sunray_swarm_msgs::agent_state::UGV;
     // 【参数】智能体编号
     nh.param<int>("agent_id", agent_id, 1);
@@ -18,6 +18,7 @@ void UGV_CONTROL::init(ros::NodeHandle& nh)
     // 【参数】是否打印
     nh.param<bool>("flag_printf", flag_printf, false);
     // 【参数】0 for mac,1 for diff
+    //mac是麦克纳姆轮，diff是差速轮
     nh.param<int>("ugv_type", ugv_type, 0);
     // 【参数】悬停控制参数 - xy
     nh.param<float>("ugv_control_param/Kp_xy", ugv_control_param.Kp_xy, 1.4);
@@ -39,13 +40,15 @@ void UGV_CONTROL::init(ros::NodeHandle& nh)
 
     agent_name = "ugv_" + std::to_string(agent_id);
     // 根据 pose_source 参数选择数据源
-    if (pose_source == 1)
+    if (pose_source == 1)//动捕数据
     {
         // 【订阅】订阅动捕的数据(位置+速度) vrpn -> 本节点
+        // 它会更新智能体的当前位置、姿态以及位姿数据的有效性状态。
         mocap_pos_sub = nh.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/"+ agent_name + "/pose", 1, &UGV_CONTROL::mocap_pos_cb, this);
+        // 它会更新智能体的当前速度信息。
         mocap_vel_sub = nh.subscribe<geometry_msgs::TwistStamped>("/vrpn_client_node/"+ agent_name + "/twist", 1, &UGV_CONTROL::mocap_vel_cb, this);
     }
-    else if (pose_source == 2)
+    else if (pose_source == 2)//slam数据
     {
         // 【订阅】订阅Odom数据
         odom_sub = nh.subscribe("/sunray_swarm/" + agent_name + "/odom", 1, &UGV_CONTROL::odom_cb,this);
@@ -61,6 +64,7 @@ void UGV_CONTROL::init(ros::NodeHandle& nh)
     // 【发布】智能体状态 本节点 -> 地面站/其他节点
     agent_state_pub = nh.advertise<sunray_swarm_msgs::agent_state>("/sunray_swarm/" + agent_name + "/agent_state", 1); 
     // 【发布】文字提示消息  本节点 -> 地面站
+    // 最后没有发布，publish那里被注释掉了
     text_info_pub = nh.advertise<std_msgs::String>("/sunray_swarm/text_info", 1);
     // 【发布】控制指令（机体系，单位：米/秒，Rad/秒）本节点 -> ugv_driver
     agent_cmd_vel_pub = nh.advertise<geometry_msgs::Twist>("/sunray_swarm/" + agent_name + "/cmd_vel", 1); 
@@ -83,6 +87,7 @@ void UGV_CONTROL::init(ros::NodeHandle& nh)
     // 【定时器】 定时打印状态
     timer_debug = nh.createTimer(ros::Duration(3.0), &UGV_CONTROL::timercb_debug, this);
 
+    //agent_state是消息类型的变量，下面是对它的初始化
     agent_state.header.stamp = ros::Time::now();
     agent_state.header.frame_id = "world";
     agent_state.agent_type = agent_type;
@@ -96,9 +101,11 @@ void UGV_CONTROL::init(ros::NodeHandle& nh)
     agent_state.vel[0] = 0.0;
     agent_state.vel[1] = 0.0;
     agent_state.vel[2] = 0.0;
+    //agent_state.att是欧拉角，单位是弧度，初始值为0
     agent_state.att[0] = 0.0;
     agent_state.att[1] = 0.0;
     agent_state.att[2] = 0.0;
+    //agent_state.attitude_q是四元数，初始值为单位四元数，表示没有旋转
     agent_state.attitude_q.x = 0.0;
     agent_state.attitude_q.y = 0.0;
     agent_state.attitude_q.z = 0.0;
@@ -111,6 +118,7 @@ void UGV_CONTROL::init(ros::NodeHandle& nh)
         agent_state.battery = -1.0;
     }
     agent_state.control_state = sunray_swarm_msgs::agent_cmd::INIT;
+    //将current_agent_cmd（消息类型的变量）命令状态初始化为INIT，表示初始状态：不执行任何操作
     current_agent_cmd.control_state = sunray_swarm_msgs::agent_cmd::INIT;
 
     // 根据智能体ID来设置仿真时RVIZ中智能体的颜色，与真机无关
@@ -165,6 +173,7 @@ void UGV_CONTROL::mainloop()
             break;
         
         // POS_CONTROL：位置控制模式，无人车移动到期望的位置+偏航（期望位置由外部指令赋值）
+        //将期望位置转化为期望速度，然后发布出去
         case sunray_swarm_msgs::agent_cmd::POS_CONTROL:
             if(ugv_type == 0)
             {
@@ -209,6 +218,7 @@ void UGV_CONTROL::agnet_cmd_cb(const sunray_swarm_msgs::agent_cmd::ConstPtr& msg
 {
 
         // 如果地面站接管了，且收到的话题不是来自于地面站的指令，则直接退出
+        // gs_control表示不是地面站接管
     if(gs_control && msg->cmd_source != "sunray_station")
     {
         return;
@@ -222,37 +232,39 @@ void UGV_CONTROL::agnet_cmd_cb(const sunray_swarm_msgs::agent_cmd::ConstPtr& msg
 
     current_agent_cmd = *msg; 
 
-    switch(msg->control_state) 
+    switch(msg->control_state)
     {
-        // 收到INIT指令
+        // 收到INIT指令，进入初始化状态
         case sunray_swarm_msgs::agent_cmd::INIT:
             text_info.data = node_name + ": ugv_" + to_string(agent_id) + " Get agent_cmd: INIT!";
             cout << BLUE << text_info.data << TAIL << endl;
             break;
-        // 收到HOLD指令
+        // 收到HOLD指令，进入悬停模式
         case sunray_swarm_msgs::agent_cmd::HOLD:
             text_info.data = node_name + ": ugv_" + to_string(agent_id) + " Get agent_cmd: HOLD!";
             cout << BLUE << text_info.data << TAIL << endl;
             break;
-        // 收到POS_CONTROL指令
+        // 收到POS_CONTROL指令，进入位置控制模式
         case sunray_swarm_msgs::agent_cmd::POS_CONTROL:
+            // 更新期望位置和偏航角
             desired_position.x = msg->desired_pos.x;
             desired_position.y = msg->desired_pos.y;
-            desired_position.z = agent_height;
+            desired_position.z = agent_height; // 固定高度
             desired_yaw = msg->desired_yaw;
             //  text_info.data = node_name + ": ugv_" + to_string(agent_id) + " Get agent_cmd: POS_CONTROL!";
             //  cout << BLUE << text_info.data << TAIL << endl;
             break;
-        // 收到VEL_CONTROL_BODY指令：此处不做任何处理，在主循环中处理
-        case sunray_swarm_msgs::agent_cmd::VEL_CONTROL_BODY:  
+        // 收到VEL_CONTROL_BODY指令：车体系速度控制，主循环中处理
+        case sunray_swarm_msgs::agent_cmd::VEL_CONTROL_BODY:
             //  text_info.data = node_name + ": ugv_" + to_string(agent_id) + " Get agent_cmd: VEL_CONTROL_BODY!";
             //  cout << BLUE << text_info.data << TAIL << endl;
             break;
-        // 收到VEL_CONTROL_ENU指令：此处不做任何处理，在主循环中处理
+        // 收到VEL_CONTROL_ENU指令：惯性系速度控制，主循环中处理
         case sunray_swarm_msgs::agent_cmd::VEL_CONTROL_ENU:
             //  text_info.data = node_name + ": ugv_" + to_string(agent_id) + " Get agent_cmd: VEL_CONTROL_ENU!";
             //  cout << BLUE << text_info.data << TAIL << endl;
             break;
+        // 收到未知指令，打印错误信息
         default:
             text_info.data = node_name + ": ugv_" + to_string(agent_id) + " Get agent_cmd: Wrong!";
             cout << RED << text_info.data << TAIL << endl;
@@ -291,6 +303,7 @@ void UGV_CONTROL::set_desired_position()
     desired_position.z = agent_height;
 }
 
+//得到yaw的error，并且将error限制在[-pi,pi]范围内，方便后续控制指令的计算
 double UGV_CONTROL::get_yaw_error(double yaw_ref, double yaw_now)
 {
     double error = yaw_ref - yaw_now;
@@ -384,14 +397,17 @@ geometry_msgs::Twist UGV_CONTROL::pos_control_diff(geometry_msgs::Point pos_ref,
 }
 
 // 位置控制算法
+//传入的两个参数分别是期望位置和期望偏航角，输出是一个geometry_msgs::Twist类型的控制指令，包含线速度和角速度
 geometry_msgs::Twist UGV_CONTROL::pos_control_mac(geometry_msgs::Point pos_ref, double yaw_ref)
 {
     float cmd_body[2];
     float cmd_enu[2];
     // 控制指令计算：使用简易P控制 - XY
+    //其实就是error乘以一个比例系数Kp_xy，得到在ENU（世界坐标系）下的控制指令
     cmd_enu[0] = (pos_ref.x - agent_state.pos[0]) * ugv_control_param.Kp_xy;
     cmd_enu[1] = (pos_ref.y - agent_state.pos[1]) * ugv_control_param.Kp_xy;
     // 惯性系 -> body frame
+    //得到在body坐标系下的控制指令，方便底层控制器执行
     rotation_yaw(agent_state.att[2], cmd_body, cmd_enu);             
     desired_vel.linear.x = cmd_body[0];
     desired_vel.linear.y = cmd_body[1];
@@ -411,6 +427,7 @@ geometry_msgs::Twist UGV_CONTROL::pos_control_mac(geometry_msgs::Point pos_ref, 
 }
 
 // 【坐标系旋转函数】- enu系到body系
+// yaw_angle当前在enu坐标系下的yaw角，利用这个角度求出在body坐标系下的控制指令
 void UGV_CONTROL::rotation_yaw(double yaw_angle, float body_frame[2], float enu_frame[2])
 {
     body_frame[0] = enu_frame[0] * cos(yaw_angle) + enu_frame[1] * sin(yaw_angle);
@@ -577,22 +594,25 @@ void UGV_CONTROL::timercb_state(const ros::TimerEvent &e)
 }
 
 // 回调函数：动捕
+// 该函数用于处理动捕系统发布的位姿数据（位置和姿态）。
+// 它会更新智能体的当前位置、姿态以及位姿数据的有效性状态。
 void UGV_CONTROL::mocap_pos_cb(const geometry_msgs::PoseStampedConstPtr& msg)
 {
-    get_odom_time = ros::Time::now(); // 记录时间戳，防止超时
-	agent_state.pos[0] = msg->pose.position.x;
-    agent_state.pos[1] = msg->pose.position.y;
-	agent_state.pos[2] = agent_height;
-    agent_state.attitude_q = msg->pose.orientation;
+    get_odom_time = ros::Time::now(); // 记录接收到位姿数据的时间戳，用于判断数据是否超时
+	agent_state.pos[0] = msg->pose.position.x; // 更新智能体的X坐标
+    agent_state.pos[1] = msg->pose.position.y; // 更新智能体的Y坐标
+	agent_state.pos[2] = agent_height; // 更新智能体的Z坐标，固定为预设高度
+    agent_state.attitude_q = msg->pose.orientation; // 更新智能体的姿态四元数
 
+    // 将四元数转换为欧拉角表示
     Eigen::Quaterniond q_mocap = Eigen::Quaterniond(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
     Eigen::Vector3d agent_att = quaternion_to_euler(q_mocap);
 
-	agent_state.att[0] = agent_att.x();
-    agent_state.att[1] = agent_att.y();
-	agent_state.att[2] = agent_att.z();
+	agent_state.att[0] = agent_att.x(); // 更新智能体的Roll角
+    agent_state.att[1] = agent_att.y(); // 更新智能体的Pitch角
+	agent_state.att[2] = agent_att.z(); // 更新智能体的Yaw角
 
-    agent_state.odom_valid = true;
+    agent_state.odom_valid = true; // 标记位姿数据为有效
 }
 
 // 回调函数：动捕
@@ -604,6 +624,7 @@ void UGV_CONTROL::mocap_vel_cb(const geometry_msgs::TwistStampedConstPtr& msg)
 }
 
 // 回调函数：VIOBOT ODOM
+//slam数据，不用
 void UGV_CONTROL::odom_cb(const nav_msgs::OdometryConstPtr& msg)
 {
     get_odom_time = ros::Time::now(); // 记录时间戳，防止超时
@@ -635,6 +656,8 @@ void UGV_CONTROL::battery_cb(const std_msgs::Float32ConstPtr& msg)
 }
 
 // 根据智能体ID来设置仿真时RVIZ中智能体的颜色，与真机无关
+//通过对 256 取模并除以 255.0，确保生成的颜色值在 [0, 1] 的范围内，适合 ROS 中的 ColorRGBA 消息使用。
+//每个智能体将根据其 ID 生成一个独特的颜色，便于在 RVIZ 中区分不同的智能体。
 void UGV_CONTROL::setup_rviz_color()
 {
     led_color.a = 1.0;
@@ -819,6 +842,7 @@ void UGV_CONTROL::printf_param()
     cout << GREEN << "agent_id : " << agent_id << "" << TAIL << endl;
     cout << GREEN << "agent_ip : " << agent_ip << "" << TAIL << endl;
     cout << GREEN << "agent_height : " << agent_height << TAIL << endl;
+    //pose_source是指姿态信息的来源，1代表动捕系统（Mocap），2代表里程计（ODOM）。
     cout << GREEN << "pose_source : " << pose_source << TAIL << endl;
     if(pose_source == 1)
     {
@@ -829,8 +853,10 @@ void UGV_CONTROL::printf_param()
     }else
     {
         cout << RED << "Pose source: Unknown" << TAIL << endl;
-    }   
+    }
+    //flag_printf用于控制是否打印调试信息。当flag_printf为true时，程序会输出相关的调试信息（更为详细的信息）
     cout << GREEN << "flag_printf : " << flag_printf << "" << TAIL << endl;
+    //ugv_type0代表麦克纳姆轮（Mecanum）控制，1代表差速控制（Differential）。
     cout << GREEN << "ugv_type : " << ugv_type << TAIL << endl;
     if(ugv_type == 0)
     {
@@ -858,21 +884,29 @@ void UGV_CONTROL::printf_param()
 }
 
 
+//获取当前设备的IPv4地址，如果获取失败，则返回默认的IP地址"192.168.1.1"
 string UGV_CONTROL::get_ugv_ip() 
 {
+    //struct ifaddrs用来描述系统中每个网络接口（interface） 的详细信息
     struct ifaddrs *ifaddr, *ifa;
+    //#define INET6_ADDRSTRLEN 46，用的是ipv6
     char ip[INET6_ADDRSTRLEN];
 
-    if (getifaddrs(&ifaddr) == -1) 
+    //如果获取网络接口信息失败（返回 -1）
+    //如果获取成功，结构体ifaddr就会获取网络信息接口的数据
+    if (getifaddrs(&ifaddr) == -1)
     {
         return "192.168.1.1";
     }
 
+    //将ifaddr复制到ifa，然后遍历网络接口链表
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) 
     {
+        //如果遍历到的当前接口的地址为空，跳过
         if (ifa->ifa_addr == NULL)
             continue;
 
+        // 获取地址的协议族（IPv4 或 IPv6）
         int family = ifa->ifa_addr->sa_family;
         
         // 仅处理IPv4地址
@@ -882,6 +916,7 @@ string UGV_CONTROL::get_ugv_ip()
             if (strcmp(ifa->ifa_name, "lo") == 0)
                 continue;
 
+            // 将IPv4地址从二进制格式转换为点分十进制字符串格式
             struct sockaddr_in *addr = (struct sockaddr_in *)ifa->ifa_addr;
             inet_ntop(AF_INET, &addr->sin_addr, ip, sizeof(ip));
             // printf("Interface: %s\tIP: %s\n", ifa->ifa_name, ip);
@@ -889,6 +924,6 @@ string UGV_CONTROL::get_ugv_ip()
     }
 
     // freeifaddrs(ifaddr);
-    return ip;
+    return ip;// 返回获取到的IP地址
 }
 
