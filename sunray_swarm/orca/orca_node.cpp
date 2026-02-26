@@ -50,6 +50,7 @@ int main(int argc, char **argv)
         ros::spinOnce();
         // 主循环函数
         arrived_all_goals = orca.orca_run();
+        //更新每个智能体的 ORCA 状态信息（如目标点、期望速度等）并发布，同时在 RVIZ 中发布目标点的可视化标记。
         orca.pub_orca_state();
         // sleep
         rate.sleep();

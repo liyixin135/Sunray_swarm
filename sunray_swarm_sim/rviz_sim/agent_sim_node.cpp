@@ -25,6 +25,7 @@ int main(int argc, char **argv)
         // 回调函数
         ros::spinOnce();
         // 主循环函数
+        //开启仿真，发送智能体实际位置给ugv_control节点
         finished = agent_sim.mainloop();
         // 休眠
         rate.sleep();

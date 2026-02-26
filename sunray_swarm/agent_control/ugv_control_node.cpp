@@ -31,6 +31,7 @@ int main(int argc, char **argv)
         // 回调函数
         ros::spinOnce();
         // 主循环函数
+        //接收智能体位置信息，并发送控制指令给智能体
         ugv_control.mainloop();
         // sleep
         rate.sleep();
