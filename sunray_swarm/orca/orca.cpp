@@ -12,20 +12,28 @@ void ORCA::init(ros::NodeHandle& nh)
     // 【参数】终端是否打印调试信息
     nh.param<bool>("flag_printf", flag_printf, false);
     // 【参数】智能体之间的假想感知距离
+    //orca_params/neighborDist 参数定义了智能体之间的感知范围，只有在这个范围内的其他智能体才会被认为是邻居，并参与碰撞检测和避碰计算。
+    // ORCA 算法会根据这些邻居的状态（位置、速度等）来计算每个智能体的期望速度，从而避免碰撞。
     nh.param<float>("orca_params/neighborDist", orca_params.neighborDist, 2.0);
+    //邻居最大数量不能超过机器人数量，否则会出现警告，建议设置为机器人数量-1
     orca_params.maxNeighbors = agent_num;
     // 【参数】数字越大，智能体响应相邻智能体的碰撞越快，但速度可选的自由度越小
+    //预判未来2.0s内的碰撞情况，来计算当前的避碰速度，给的时间越多，智能体就越早地响应邻居的碰撞，但同时可选的速度空间也会变小，可能导致智能体过早地减速。
     nh.param<float>("orca_params/timeHorizon", orca_params.timeHorizon, 2.0);
     // 【参数】数字越大，智能体响应障碍物的碰撞越快，但速度可选的自由度越小
+    //这个参数和上面参数是一个意思，不过上面是智能体之间的碰撞，这个是智能体与静止物体之间的碰撞
     nh.param<float>("orca_params/timeHorizonObst", orca_params.timeHorizonObst, 1.0);
     // 【参数】智能体体积半径
+    //在ORCA算法中，智能体通常被简化为一个球体模型，radius 参数定义了这个球体的半径，用于计算智能体之间的碰撞检测和避障行为。通过设置这个参数，可以调整智能体的碰撞范围，从而影响避障的效果。
     nh.param<float>("orca_params/radius", orca_params.radius, 0.35);
     // 【参数】智能体最大移动速度
     nh.param<float>("orca_params/maxSpeed", orca_params.maxSpeed, 0.8);
     // 【参数】时间步长
+    //表示 ORCA 算法的时间步长为 0.1 秒。每隔 0.1 秒，ORCA 算法会运行一次，计算出每个智能体的期望速度
     nh.param<float>("orca_params/time_step", orca_params.time_step, 0.1);
 
     string agent_prefix;
+    //读参判断是无人机还是无人车
     if(agent_type == sunray_swarm_msgs::agent_state::RMTT)
     {
         agent_prefix = "/rmtt";
@@ -208,6 +216,7 @@ void ORCA::pub_orca_state()
         agent_orca_state[i].goal[0] = rvo_goal.x();
         agent_orca_state[i].goal[1] = rvo_goal.y();
         agent_orca_state[i].yaw = goal_pose[i].yaw;
+        //调用 ORCA 算法的 sim 对象的成员函数 getAgentVelCMD，并传入智能体的索引 i，返回该智能体的期望速度（RVO::Vector2 类型）
         RVO::Vector2 vel = sim->getAgentVelCMD(i); 
         agent_orca_state[i].vel_orca[0] = vel.x();
         agent_orca_state[i].vel_orca[1] = vel.y();
@@ -405,6 +414,7 @@ void ORCA::agent_goal_cb(const geometry_msgs::Point::ConstPtr& msg, int i)
 // 回调函数：ORCA算法指令回调函数，根据msg->orca_cmd的值来判断处理
 void ORCA::orca_cmd_cb(const sunray_swarm_msgs::orca_cmd::ConstPtr& msg)
 {
+    //orca_cmd是消息类型的变量，msg是接收到的消息指针，*msg是解引用后的消息内容，将其赋值给orca_cmd变量，方便后续使用
     orca_cmd = *msg;
     // 当orca_cmd为SET_HOME时，将每个智能体的当前所在点设置为home点，并同时启动ORCA算法
     if(msg->orca_cmd == sunray_swarm_msgs::orca_cmd::SET_HOME)
@@ -413,11 +423,14 @@ void ORCA::orca_cmd_cb(const sunray_swarm_msgs::orca_cmd::ConstPtr& msg)
         // 记录home点
         for(int i = 0; i < agent_num; i++) 
         {
-            home_pose[i].x = agent_state[i].pos[0];
-            home_pose[i].y = agent_state[i].pos[1];
-            home_pose[i].yaw = agent_state[i].att[2];
+            //home_pose是结构体数组，包含x、y、yaw三个成员变量，分别表示home点的坐标和偏航角。
+            // 这里将每个智能体当前的位置和偏航角赋值给对应的home_pose元素，记录下每个智能体的home点信息。
+            home_pose[i].x = agent_state[i].pos[0];//x
+            home_pose[i].y = agent_state[i].pos[1];//y
+            home_pose[i].yaw = agent_state[i].att[2];//att2是yaw角
             cout << BLUE << node_name << " Set agents_" << i+1 << " home at [" << home_pose[i].x << "," << home_pose[i].y << "] with "<< home_pose[i].yaw * 180 / M_PI << "deg" << TAIL << endl;
         }
+        //到这里，每个智能体的home点都已经记录好了，并且ORCA算法也已经启动了，接下来就可以根据收到的目标点来进行避障控制了
         // ORCA算法初始化 - 添加当前为目标点（意味着当ORCA没有收到新的目标点时，智能体已经抵达对应目标点）
         setup_init_goals();
         text_info.data = node_name + "Get orca_cmd: SET_HOME, ORCA start!";
@@ -474,6 +487,7 @@ void ORCA::orca_cmd_cb(const sunray_swarm_msgs::orca_cmd::ConstPtr& msg)
         // 在算法中添加障碍物
         sim->addObstacle(obstacle);
         // 在算法中处理障碍物信息
+        //完成障碍物的初始化和处理，使得 ORCA 算法能够正确地识别和处理障碍物。
         sim->processObstacles();
 
 
@@ -586,6 +600,7 @@ void ORCA::setup_init_goals()
 {
     // 容器清零
     goals.clear();
+    //不是容器，只能存储一个二维向量（x, y）
     RVO::Vector2 agent_set_goal;
 
     for(int i = 0; i < agent_num; i++) 
@@ -594,12 +609,14 @@ void ORCA::setup_init_goals()
         goal_pose[i].y = home_pose[i].y;
         goal_pose[i].yaw = home_pose[i].yaw;
         agent_set_goal = RVO::Vector2(goal_pose[i].x, goal_pose[i].y);
+        //其实就是利用agent_set_goal这个中间变量实现把home点坐标转换成RVO::Vector2类型，并存储到goals这个容器里，后续会在ORCA算法中被调用
         goals.push_back(agent_set_goal);
     }
 
     for (int i = 0; i < agent_num; i++)  
     {   
         if (i < goals.size()) {
+            // 为仿真设置第 i 个智能体的目标点为 goals[i]
             sim->setAgentGoal(i, goals[i]);
             cout << BLUE << node_name << "  Set agents_" << i+1 << " init goal at [" << goals[i].x() << "," << goals[i].y() << "]"<< TAIL << endl;
         }
