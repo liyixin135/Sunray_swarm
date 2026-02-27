@@ -162,6 +162,7 @@ int main(int argc, char **argv)
     cout << GREEN << text_info.data << TAIL << endl;
     text_info_pub.publish(text_info);
     orca_state[0].arrived_all_goal = false;
+    //等待所有智能体到达初始目标点，最多等待25秒。
     int flag_a = 0;
     while (!(orca_state[0].arrived_all_goal)) 
     {
