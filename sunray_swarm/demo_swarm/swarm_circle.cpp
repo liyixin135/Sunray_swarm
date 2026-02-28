@@ -154,8 +154,8 @@ for (int i = 0; i < agent_num; i++)
     if (i < 2) // 前两个智能体设置为去半径上的点
     {
         float angle = (i == 0) ? 0 : M_PI; // 半径两端的点
-        goal_point.x = circle_center[0] + 0.6 * circle_radius * cos(angle);
-        goal_point.y = circle_center[1] + 0.6 * circle_radius * sin(angle);
+        goal_point.x = circle_center[0] + 0.5 * circle_radius * cos(angle);
+        goal_point.y = circle_center[1] + 0.5 * circle_radius * sin(angle);
         goal_point.z = atan2(omega * circle_radius * cos(angle), -omega * circle_radius * sin(angle)); // 切线方向
     }
     else if (i < 6) // 后四个智能体设置为正方形的四个边角点
@@ -227,7 +227,8 @@ for (int i = 0; i < agent_num; i++)
             else if (i < 6) // 后四个智能体在正方形轨迹上运动
             {
                 float side_length = 2 * circle_radius; // 正方形边长
-                float time_per_side = side_length / linear_vel; // 每条边的时间
+                // 每条边的时间，线速度作出修改是为了让正方形轨迹的线速度与圆形轨迹的线速度相匹配，使得轨迹描绘图形更好看
+                float time_per_side = side_length / (linear_vel / M_PI * 2);
                 float total_time = 4 * time_per_side; // 完成一圈的总时间
                 float t = fmod(time_trajectory + (i - 2) * time_per_side, total_time); // 每个智能体的时间偏移
                 int side = t / time_per_side; // 当前所在边
