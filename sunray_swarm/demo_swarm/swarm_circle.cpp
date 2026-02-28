@@ -261,8 +261,7 @@ for (int i = 0; i < agent_num; i++)
         time_trajectory += 0.1;
         ros::spinOnce();
         rate.sleep();
-    }omega = direction * fabs(float(linear_vel / circle_radius));
-            linear_vel = omega * circle_radius * M_PI; // 调整线速度，使得正方形边长时间与半圆时间匹配
+    }
 
     text_info.data = node_name + "Demo finished...";
     cout << GREEN << text_info.data << TAIL << endl;
