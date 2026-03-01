@@ -129,6 +129,10 @@ target_link_libraries(ugv_follow_rmtt_swarm ${catkin_LIBRARIES})
 add_executable(swarm_circle demo_swarm/swarm_circle.cpp)
 add_dependencies(swarm_circle sunray_swarm_gencpp)
 target_link_libraries(swarm_circle ${catkin_LIBRARIES})
+## SWARM_DEMO - 个人实验测试
+add_executable(swarm_test demo_swarm/swarm_test.cpp)
+add_dependencies(swarm_test sunray_swarm_gencpp)
+target_link_libraries(swarm_test ${catkin_LIBRARIES})
 ## SWARM_DEMO - 集群绕8
 add_executable(swarm_lemniscate demo_swarm/swarm_lemniscate.cpp)
 add_dependencies(swarm_lemniscate sunray_swarm_gencpp)
