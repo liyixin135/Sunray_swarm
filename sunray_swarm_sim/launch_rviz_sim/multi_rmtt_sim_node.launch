@@ -52,26 +52,26 @@
     <!-- 5号无人机 -->
     <!-- 第二个节点：启动5号无人机仿真节点 - rmtt_sim_node_5 -->
     <!-- 注意配置初始位置 -->    
-    <node pkg="sunray_swarm_sim" type="agent_sim_node" name="rmtt_sim_node_5" output="screen">
-        <param name="agent_type" type="int" value="0" />
-        <param name="agent_id" value="5" />
-        <param name="init_pos_x" value="2.0" />
-        <param name="init_pos_y" value="0.0" />
-        <param name="init_yaw" type="double" value="0.0" />
-        <param name="agent_height" value="1.0" />
-    </node>
+<!--    <node pkg="sunray_swarm_sim" type="agent_sim_node" name="rmtt_sim_node_5" output="screen">-->
+<!--        <param name="agent_type" type="int" value="0" />-->
+<!--        <param name="agent_id" value="5" />-->
+<!--        <param name="init_pos_x" value="2.0" />-->
+<!--        <param name="init_pos_y" value="0.0" />-->
+<!--        <param name="init_yaw" type="double" value="0.0" />-->
+<!--        <param name="agent_height" value="1.0" />-->
+<!--    </node>-->
 
     <!-- 6号无人机 -->
     <!-- 第二个节点：启动5号无人机仿真节点 - rmtt_sim_node_6 -->
     <!-- 注意配置初始位置 -->    
-    <node pkg="sunray_swarm_sim" type="agent_sim_node" name="rmtt_sim_node_6" output="screen">
-        <param name="agent_type" type="int" value="0" />
-        <param name="agent_id" value="6" />
-        <param name="init_pos_x" value="3.0" />
-        <param name="init_pos_y" value="0.0" />
-        <param name="init_yaw" type="double" value="0.0" />
-        <param name="agent_height" value="1.0" />
-    </node>
+<!--    <node pkg="sunray_swarm_sim" type="agent_sim_node" name="rmtt_sim_node_6" output="screen">-->
+<!--        <param name="agent_type" type="int" value="0" />-->
+<!--        <param name="agent_id" value="6" />-->
+<!--        <param name="init_pos_x" value="3.0" />-->
+<!--        <param name="init_pos_y" value="0.0" />-->
+<!--        <param name="init_yaw" type="double" value="0.0" />-->
+<!--        <param name="agent_height" value="1.0" />-->
+<!--    </node>-->
 
     <!-- 第三个节点：启动RVIZ，对应的配置文件为multi_agent.rviz -->
     <arg name="rviz_enable" default="true"/>
