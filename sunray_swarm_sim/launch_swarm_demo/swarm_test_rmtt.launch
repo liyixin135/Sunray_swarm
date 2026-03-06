@@ -1,5 +1,5 @@
 <launch>
-	<arg name="agent_num" default="6" />
+	<arg name="agent_num" default="2" />
 
 	<node pkg="sunray_swarm" name="swarm_test_rmtt" type="swarm_test" output="screen">
 		<param name="agent_type" value="0" />
