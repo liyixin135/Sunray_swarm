@@ -204,6 +204,7 @@ int main(int argc, char **argv)
 
     time_trajectory = 0.0;
 
+    last_switch_time = ros::Time::now();
     while (ros::ok())
     {
         for (int i = 0; i < agent_num; i++)
