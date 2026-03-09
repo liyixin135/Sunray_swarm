@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     // 【参数】智能体类型 0代表RMTT，1代表UGV
     nh.param<int>("agent_type", agent_type, 0);
     // 【参数】智能体编号 智能体数量，默认为6
-    nh.param<int>("agent_num", agent_num, 6);
+    nh.param<int>("agent_num", agent_num, 8);
     // 【参数】圆形轨迹参数：圆心X坐标
     nh.param<float>("circle_center_x", circle_center[0], 0.0f);
     // 【参数】圆形轨迹参数：圆心Y坐标
@@ -71,6 +71,31 @@ int main(int argc, char **argv)
     nh.param<float>("direction", direction, 1.0f);
     // 【参数】期望偏航角
     nh.param<float>("desired_yaw", desired_yaw, 0.0f);
+
+    std::vector<std::vector<Eigen::Vector2f>> letter_shapes; // 字母形状的坐标
+// 初始化字母形状（中心约在原点）
+    letter_shapes = {
+            // 字母 d 的形状：左边一个圆弧 + 右边一竖
+            {
+                    {1.0,  1.0}, {1.0,  2.0}, {1.0, -1.0}, { 1.0, -2.0},
+                    { 0.0,  -1.0}, { 0.0,  -2.0}, { -1.0, -1.0}, { -1.0,  -2.0}
+            },
+            // 字母 u 的形状：左竖下来拐弯到右竖
+            {
+                    {1.0,  0.0}, {1.0, 1.0}, {-1.0, 1.0}, { -1.0, 0.0},
+                    { -0.5, -1.0}, { 0.5, -1.0}, { 1.0,  -1.0}, { 0.0, -1.0}
+            },
+            // 字母 t 的形状：中间一竖 + 上部一横
+            {
+                    { -1.0,  0.5}, { 0.0,  0.5}, { 1.0, 0.5}, { 0.0, 1.5},
+                    {0.0,  -0.5}, { 0.0,  -1.5}, {0.5, -1.5}, { 1.0, -1.0}
+            },
+            // 字母 g 的形状：上圆 + 下尾
+            {
+                    {0.0,  0.0}, {1.0,  1.0}, {0.5, 2}, { -0.5, 2},
+                    { -1.0,  1.0}, { -1.0,  -1.5}, { 1.0, -1.0}, { 0.0,  -2.0}
+            }
+    };
 
     // 计算角速度
     if (circle_radius != 0)
@@ -139,41 +164,21 @@ int main(int argc, char **argv)
     text_info_pub.publish(text_info);
     sleep(3.0);
 
+    // 执行字母展示
+    int current_letter = 0; // 当前展示的字母索引
+    ros::Time last_switch_time = ros::Time::now();
+    bool is_gdut = false; // 是否展示 gdut
+
     // 将智能体移动到初始位置
     for (int i = 0; i < agent_num; i++)
     {
         geometry_msgs::Point goal_point;
+        const auto& letter = letter_shapes[3]; // 直接使用字母 g 的形状
 
-        if (i < 2) // 前两个智能体设置为去半径上的点
-        {
-            float angle = (i == 0) ? 0 : M_PI; // 半径两端的点
-            goal_point.x = circle_center[0] + 0.5 * circle_radius * cos(angle);
-            goal_point.y = circle_center[1] + 0.5 * circle_radius * sin(angle);
-            goal_point.z = atan2(omega * circle_radius * cos(angle), -omega * circle_radius * sin(angle)); // 切线方向
-        }
-        else if (i < 6) // 后四个智能体设置为正方形的四个边角点
-        {
-            switch (i - 2)
-            {
-                case 0: // 左上角
-                    goal_point.x = circle_center[0] - circle_radius;
-                    goal_point.y = circle_center[1] + circle_radius;
-                    break;
-                case 1: // 右上角
-                    goal_point.x = circle_center[0] + circle_radius;
-                    goal_point.y = circle_center[1] + circle_radius;
-                    break;
-                case 2: // 右下角
-                    goal_point.x = circle_center[0] + circle_radius;
-                    goal_point.y = circle_center[1] - circle_radius;
-                    break;
-                case 3: // 左下角
-                    goal_point.x = circle_center[0] - circle_radius;
-                    goal_point.y = circle_center[1] - circle_radius;
-                    break;
-            }
-            goal_point.z = desired_yaw; // 偏航角保持默认
-        }
+        goal_point.x = circle_center[0] + letter[i % letter.size()][0];
+        goal_point.y = circle_center[1] + letter[i % letter.size()][1];
+        goal_point.z = desired_yaw;
+
         orca_goal_pub[i].publish(goal_point);
     }
 
@@ -199,60 +204,37 @@ int main(int argc, char **argv)
 
     time_trajectory = 0.0;
 
-    // 执行圆周运动
-    while(ros::ok())
+    while (ros::ok())
     {
         for (int i = 0; i < agent_num; i++)
         {
             geometry_msgs::Point goal_point;
 
-            if (i < 2) // 前两个智能体在圆形轨迹上运动
-            {
-                float angle = omega * time_trajectory + (i == 0 ? 0 : M_PI); // 两个智能体保持直径两端
-                goal_point.x = circle_center[0] + 0.5 * circle_radius * cos(angle);
-                goal_point.y = circle_center[1] + 0.5 * circle_radius * sin(angle);
+            // 获取当前字母的形状
+            const auto& letter = is_gdut ? letter_shapes[3] : letter_shapes[current_letter];
 
-                // 偏航角跟随圆形轨迹计算
-                double vx = -omega * 0.5 * circle_radius * sin(angle);
-                double vy = omega * 0.5 * circle_radius * cos(angle);
-                goal_point.z = atan2(vy, vx);
-            }
-            else if (i < 6) // 后四个智能体在正方形轨迹上运动
-            {
-                float side_length = 2 * circle_radius; // 正方形边长
-                // 每条边的时间，线速度作出修改是为了让正方形轨迹的线速度与圆形轨迹的线速度相匹配，使得轨迹描绘图形更好看
-                float time_per_side = side_length / (linear_vel / M_PI * 2);
-                float total_time = 4 * time_per_side; // 完成一圈的总时间
-                float t = fmod(time_trajectory + (i - 2) * time_per_side, total_time); // 每个智能体的时间偏移
-                int side = t / time_per_side; // 当前所在边
-                float progress = fmod(t, time_per_side) / time_per_side; // 当前边的进度
-
-                switch (side)
-                {
-                    case 0: // 上边
-                        goal_point.x = circle_center[0] - circle_radius + progress * side_length;
-                        goal_point.y = circle_center[1] + circle_radius;
-                        break;
-                    case 1: // 右边
-                        goal_point.x = circle_center[0] + circle_radius;
-                        goal_point.y = circle_center[1] + circle_radius - progress * side_length;
-                        break;
-                    case 2: // 下边
-                        goal_point.x = circle_center[0] + circle_radius - progress * side_length;
-                        goal_point.y = circle_center[1] - circle_radius;
-                        break;
-                    case 3: // 左边
-                        goal_point.x = circle_center[0] - circle_radius;
-                        goal_point.y = circle_center[1] - circle_radius + progress * side_length;
-                        break;
-                }
-                goal_point.z = desired_yaw; // 偏航角保持默认
-            }
+            // 设置无人机目标点
+            goal_point.x = circle_center[0] + letter[i % letter.size()][0];
+            goal_point.y = circle_center[1] + letter[i % letter.size()][1];
+            goal_point.z = desired_yaw;
 
             orca_goal_pub[i].publish(goal_point);
         }
-        // 更新时间计数器，由于循环频率为10Hz，因此设置为0.1秒
-        time_trajectory += 0.1;
+
+        // 检查是否需要切换到下一个字母
+        if ((ros::Time::now() - last_switch_time).toSec() >= 15.0)
+        {
+            if (!is_gdut)
+            {
+                current_letter++;
+                if (current_letter >= 3) // 展示完 dut 后切换到 gdut
+                {
+                    is_gdut = true;
+                }
+            }
+            last_switch_time = ros::Time::now();
+        }
+
         ros::spinOnce();
         rate.sleep();
     }

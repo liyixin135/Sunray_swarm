@@ -9,6 +9,6 @@
 gnome-terminal --window -e 'bash -c "roslaunch sunray_swarm_sim multi_rmtt_control_node.launch pose_source:=1; exec bash"' \
 --tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_rmtt_sim_node.launch; exec bash"' \
 --tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_rmtt_orca_sim.launch; exec bash"' \
---tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_ugv_control_node.launch pose_source:=1; exec bash"' \
---tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_ugv_sim_node.launch; exec bash"' \
---tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_ugv_orca_sim.launch; exec bash"' \
+#--tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_ugv_control_node.launch pose_source:=1; exec bash"' \
+#--tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_ugv_sim_node.launch; exec bash"' \
+#--tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_ugv_orca_sim.launch; exec bash"' \

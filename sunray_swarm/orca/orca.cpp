@@ -6,7 +6,7 @@ void ORCA::init(ros::NodeHandle& nh)
     //  由于无人机和无人车不在一个平面，无人机和无人车需要分别启动两个不同的ORCA算法节点
     nh.param<int>("agent_type", agent_type, 1);
     // 【参数】ORCA算法智能体数量
-    nh.param<int>("agent_num", agent_num, 6);
+    nh.param<int>("agent_num", agent_num, 8);
     // 【参数】智能体的固定高度
     nh.param<float>("agent_height", agent_height, 1.0);
     // 【参数】终端是否打印调试信息
