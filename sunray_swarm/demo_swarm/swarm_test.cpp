@@ -143,33 +143,25 @@ int main(int argc, char **argv)
     for (int i = 0; i < agent_num; i++)
     {
         geometry_msgs::Point goal_point;
-
-        if (i < 2) // 前两个智能体设置为去半径上的点
+        if (i < 4) // 后四个智能体设置为正方形的四个边角点
         {
-            float angle = (i == 0) ? 0 : M_PI; // 半径两端的点
-            goal_point.x = circle_center[0] + 0.5 * circle_radius * cos(angle);
-            goal_point.y = circle_center[1] + 0.5 * circle_radius * sin(angle);
-            goal_point.z = atan2(omega * circle_radius * cos(angle), -omega * circle_radius * sin(angle)); // 切线方向
-        }
-        else if (i < 6) // 后四个智能体设置为正方形的四个边角点
-        {
-            switch (i - 2)
+            switch ( i )
             {
                 case 0: // 左上角
-                    goal_point.x = circle_center[0] - circle_radius;
-                    goal_point.y = circle_center[1] + circle_radius;
+                    goal_point.x = 2;
+                    goal_point.y = 2;
                     break;
                 case 1: // 右上角
-                    goal_point.x = circle_center[0] + circle_radius;
-                    goal_point.y = circle_center[1] + circle_radius;
+                    goal_point.x = 2;
+                    goal_point.y = -2;
                     break;
                 case 2: // 右下角
-                    goal_point.x = circle_center[0] + circle_radius;
-                    goal_point.y = circle_center[1] - circle_radius;
+                    goal_point.x = -2;
+                    goal_point.y = -2;
                     break;
                 case 3: // 左下角
-                    goal_point.x = circle_center[0] - circle_radius;
-                    goal_point.y = circle_center[1] - circle_radius;
+                    goal_point.x = -2;
+                    goal_point.y = 2;
                     break;
             }
             goal_point.z = desired_yaw; // 偏航角保持默认
@@ -188,7 +180,7 @@ int main(int argc, char **argv)
         sleep(1);
         ros::spinOnce();
         rate.sleep();
-        if(flag_a>25)
+        if(flag_a>5)
         {
             break;
         }
@@ -206,51 +198,31 @@ int main(int argc, char **argv)
         {
             geometry_msgs::Point goal_point;
 
-            if (i < 2) // 前两个智能体在圆形轨迹上运动
+            if (i < 4) // 后四个智能体在正方形轨迹上运动
             {
-                float angle = omega * time_trajectory + (i == 0 ? 0 : M_PI); // 两个智能体保持直径两端
-                goal_point.x = circle_center[0] + 0.5 * circle_radius * cos(angle);
-                goal_point.y = circle_center[1] + 0.5 * circle_radius * sin(angle);
-
-                // 偏航角跟随圆形轨迹计算
-                double vx = -omega * 0.5 * circle_radius * sin(angle);
-                double vy = omega * 0.5 * circle_radius * cos(angle);
-                goal_point.z = atan2(vy, vx);
-            }
-            else if (i < 6) // 后四个智能体在正方形轨迹上运动
-            {
-                float side_length = 2 * circle_radius; // 正方形边长
-                // 每条边的时间，线速度作出修改是为了让正方形轨迹的线速度与圆形轨迹的线速度相匹配，使得轨迹描绘图形更好看
-                float time_per_side = side_length / (linear_vel / M_PI * 2);
-                float total_time = 4 * time_per_side; // 完成一圈的总时间
-                float t = fmod(time_trajectory + (i - 2) * time_per_side, total_time); // 每个智能体的时间偏移
-                int side = t / time_per_side; // 当前所在边
-                float progress = fmod(t, time_per_side) / time_per_side; // 当前边的进度
-
-                switch (side)
+                switch (i)
                 {
                     case 0: // 上边
-                        goal_point.x = circle_center[0] - circle_radius + progress * side_length;
-                        goal_point.y = circle_center[1] + circle_radius;
+                        goal_point.x = -2;
+                        goal_point.y = -2;
                         break;
                     case 1: // 右边
-                        goal_point.x = circle_center[0] + circle_radius;
-                        goal_point.y = circle_center[1] + circle_radius - progress * side_length;
+                        goal_point.x = -2;
+                        goal_point.y = 2;
                         break;
                     case 2: // 下边
-                        goal_point.x = circle_center[0] + circle_radius - progress * side_length;
-                        goal_point.y = circle_center[1] - circle_radius;
+                        goal_point.x = 2;
+                        goal_point.y = 2;
                         break;
                     case 3: // 左边
-                        goal_point.x = circle_center[0] - circle_radius;
-                        goal_point.y = circle_center[1] - circle_radius + progress * side_length;
+                        goal_point.x = 2;
+                        goal_point.y = -2;
                         break;
                 }
                 goal_point.z = desired_yaw; // 偏航角保持默认
-            }
-
-            orca_goal_pub[i].publish(goal_point);
+                orca_goal_pub[i].publish(goal_point);
         }
+    }
         // 更新时间计数器，由于循环频率为10Hz，因此设置为0.1秒
         time_trajectory += 0.1;
         ros::spinOnce();
