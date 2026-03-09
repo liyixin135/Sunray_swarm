@@ -222,14 +222,18 @@ int main(int argc, char **argv)
             orca_goal_pub[i].publish(goal_point);
         }
 
+        if(is_gdut)
+            is_gdut = false;
+
         // 检查是否需要切换到下一个字母
         if ((ros::Time::now() - last_switch_time).toSec() >= 15.0)
         {
             if (!is_gdut)
             {
                 current_letter++;
-                if (current_letter >= 3) // 展示完 dut 后切换到 gdut
+                if (current_letter >= 4) // 展示完 dut 后切换到 gdut
                 {
+                    current_letter = 0;
                     is_gdut = true;
                 }
             }
