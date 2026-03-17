@@ -3,6 +3,7 @@ import rospy
 from geometry_msgs.msg import Twist
 from sunray_swarm_msgs.msg import agent_cmd
 
+#把 move_base 发布的 /sunray_swarm/rmtt_X/cmd_vel_nav（Twist 速度）打包成 /sunray_swarm/rmtt_X/agent_cmd（VEL_CONTROL_BODY）发给 rmtt_control_node 执行。
 class Bridge:
     def __init__(self):
         self.agent_id = rospy.get_param("~agent_id", 1)
