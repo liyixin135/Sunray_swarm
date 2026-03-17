@@ -1,5 +1,6 @@
 <launch>
   <!-- Run move_base for rmtt_1 in RViz simulation -->
+  <!--启动该无人机的 move_base 导航（加载 costmap/参数并运行 move_base），并把位姿转成 odom+TF、将输出速度重映射到 /sunray_swarm/rmtt_X/cmd_vel_nav。-->
 
   <arg name="agent_id" default="1" />
 
