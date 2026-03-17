@@ -1,0 +1,16 @@
+<library path="lib/libsunray_nav_plugins">
+  <class
+      name="sunray_nav_plugins/AStarGlobalPlanner"
+      type="sunray_nav_plugins::AStarGlobalPlanner"
+      base_class_type="nav_core::BaseGlobalPlanner">
+    <description>A* global planner adapter (skeleton).</description>
+  </class>
+
+  <class
+      name="sunray_nav_plugins/OrcaLocalPlanner"
+      type="sunray_nav_plugins::OrcaLocalPlanner"
+      base_class_type="nav_core::BaseLocalPlanner">
+    <description>ORCA local planner adapter (skeleton).</description>
+  </class>
+</library>
+

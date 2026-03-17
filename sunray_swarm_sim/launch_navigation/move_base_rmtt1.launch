@@ -1,0 +1,28 @@
+<launch>
+  <!-- Run move_base for rmtt_1 in RViz simulation -->
+
+  <arg name="agent_id" default="1" />
+
+  <!-- Bridge mocap pose to odom+tf -->
+  <node pkg="sunray_nav_plugins" type="pose_to_odom_tf_node" name="pose_to_odom_tf_rmtt_$(arg agent_id)" output="screen">
+    <param name="pose_topic" value="/vrpn_client_node/rmtt_$(arg agent_id)/pose" />
+    <param name="odom_topic" value="/sunray_swarm/rmtt_$(arg agent_id)/odom" />
+    <param name="map_frame" value="map" />
+    <param name="odom_frame" value="odom" />
+    <param name="base_frame" value="base_link" />
+  </node>
+
+  <!-- Minimal move_base params -->
+  <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/move_base_params.yaml" />
+  <rosparam command="load" ns="move_base/global_costmap" file="$(find sunray_swarm_sim)/launch_navigation/params/costmap_common.yaml" />
+  <rosparam command="load" ns="move_base/local_costmap" file="$(find sunray_swarm_sim)/launch_navigation/params/costmap_common.yaml" />
+  <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/local_costmap.yaml" />
+  <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/global_costmap.yaml" />
+
+  <!-- Start move_base with our plugins; remap cmd_vel into this agent -->
+  <node pkg="move_base" type="move_base" name="move_base" output="screen">
+    <remap from="/cmd_vel" to="/sunray_swarm/rmtt_$(arg agent_id)/cmd_vel_nav" />
+    <remap from="/odom" to="/sunray_swarm/rmtt_$(arg agent_id)/odom" />
+  </node>
+</launch>
+

@@ -8,7 +8,9 @@
 ## 启动UGV ORCA
 gnome-terminal --window -e 'bash -c "roslaunch sunray_swarm_sim multi_rmtt_control_node.launch pose_source:=1; exec bash"' \
 --tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_rmtt_sim_node.launch; exec bash"' \
---tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_rmtt_orca_sim.launch; exec bash"' \
+--tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim move_base_rmtt1.launch agent_id:=1; exec bash"' \
+--tab -e 'bash -c "sleep 1.0; rosrun sunray_nav_plugins cmd_vel_nav_to_agent_cmd.py _agent_id:=1; exec bash"' \
+#--tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_rmtt_orca_sim.launch; exec bash"' \
 #--tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_ugv_control_node.launch pose_source:=1; exec bash"' \
 #--tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_ugv_sim_node.launch; exec bash"' \
 #--tab -e 'bash -c "sleep 1.0; roslaunch sunray_swarm_sim multi_ugv_orca_sim.launch; exec bash"' \

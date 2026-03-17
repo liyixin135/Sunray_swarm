@@ -24,3 +24,5 @@ catkin_make --source sunray_swarm --build build/sunray_swarm
 catkin_make --source sunray_swarm_sim --build build/sunray_swarm_sim
 # 编译turn_on_wheeltec_robot模块
 catkin_make --source sunray_drivers/web_cam --build build/web_cam
+# 编译sunray_nav_plugins模块
+catkin_make --source sunray_nav_plugins --build build/sunray_nav_plugins

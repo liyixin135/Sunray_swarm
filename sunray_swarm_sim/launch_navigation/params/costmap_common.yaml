@@ -1,0 +1,10 @@
+global_frame: map
+robot_base_frame: base_link
+transform_tolerance: 0.5
+
+update_frequency: 5.0
+publish_frequency: 2.0
+
+# Minimal: no obstacle sources configured yet (simulation has no laser topic wired in).
+plugins: []
+
