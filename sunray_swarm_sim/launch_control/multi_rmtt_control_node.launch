@@ -1,5 +1,5 @@
 <launch>
-    <!-- 0 for vrpn，1 for map，3 for odom -->
+    <!-- 1 for vrpn，2 for map，3 for odom -->
     <arg name="pose_source" default="3"/>
 
     <!-- 1号无人机 -->
