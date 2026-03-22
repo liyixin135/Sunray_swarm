@@ -1,0 +1,38 @@
+<launch>
+  <!-- map -> rmtt_i/odom -> rmtt_i/base_link
+       and publish /sunray_swarm/rmtt_i/odom
+  -->
+
+  <node pkg="sunray_nav_plugins" type="pose_to_odom_tf_node" name="pose_to_odom_tf_rmtt_1_multi" output="screen">
+    <param name="pose_topic" value="/vrpn_client_node/rmtt_1/pose" />
+    <param name="odom_topic" value="/sunray_swarm/rmtt_1/odom" />
+    <param name="map_frame" value="map" />
+    <param name="odom_frame" value="rmtt_1/odom" />
+    <param name="base_frame" value="rmtt_1/base_link" />
+  </node>
+
+  <node pkg="sunray_nav_plugins" type="pose_to_odom_tf_node" name="pose_to_odom_tf_rmtt_2_multi" output="screen">
+    <param name="pose_topic" value="/vrpn_client_node/rmtt_2/pose" />
+    <param name="odom_topic" value="/sunray_swarm/rmtt_2/odom" />
+    <param name="map_frame" value="map" />
+    <param name="odom_frame" value="rmtt_2/odom" />
+    <param name="base_frame" value="rmtt_2/base_link" />
+  </node>
+
+  <node pkg="sunray_nav_plugins" type="pose_to_odom_tf_node" name="pose_to_odom_tf_rmtt_3_multi" output="screen">
+    <param name="pose_topic" value="/vrpn_client_node/rmtt_3/pose" />
+    <param name="odom_topic" value="/sunray_swarm/rmtt_3/odom" />
+    <param name="map_frame" value="map" />
+    <param name="odom_frame" value="rmtt_3/odom" />
+    <param name="base_frame" value="rmtt_3/base_link" />
+  </node>
+
+  <node pkg="sunray_nav_plugins" type="pose_to_odom_tf_node" name="pose_to_odom_tf_rmtt_4_multi" output="screen">
+    <param name="pose_topic" value="/vrpn_client_node/rmtt_4/pose" />
+    <param name="odom_topic" value="/sunray_swarm/rmtt_4/odom" />
+    <param name="map_frame" value="map" />
+    <param name="odom_frame" value="rmtt_4/odom" />
+    <param name="base_frame" value="rmtt_4/base_link" />
+  </node>
+
+</launch>

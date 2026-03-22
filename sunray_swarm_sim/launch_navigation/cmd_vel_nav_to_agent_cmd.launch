@@ -1,0 +1,17 @@
+<launch>
+    <node pkg="sunray_nav_plugins" type="cmd_vel_nav_to_agent_cmd.py" name="cmd_vel_nav_to_agent_cmd_1" output="screen">
+        <param name="agent_id" value="1"/>
+    </node>
+
+    <node pkg="sunray_nav_plugins" type="cmd_vel_nav_to_agent_cmd.py" name="cmd_vel_nav_to_agent_cmd_2" output="screen">
+        <param name="agent_id" value="2"/>
+    </node>
+
+    <node pkg="sunray_nav_plugins" type="cmd_vel_nav_to_agent_cmd.py" name="cmd_vel_nav_to_agent_cmd_3" output="screen">
+        <param name="agent_id" value="3"/>
+    </node>
+
+    <node pkg="sunray_nav_plugins" type="cmd_vel_nav_to_agent_cmd.py" name="cmd_vel_nav_to_agent_cmd_4" output="screen">
+        <param name="agent_id" value="4"/>
+    </node>
+</launch>

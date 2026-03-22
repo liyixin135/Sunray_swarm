@@ -10,6 +10,7 @@ void RMTT_CONTROL::init(ros::NodeHandle& nh)
     nh.param<std::string>("agent_ip", agent_ip, "192.168.1.1");
     // 【参数】智能体固定的飞行高度
     nh.param<float>("agent_height", agent_height, 1.0);
+    // 【参数】智能体位置来源（1：动捕VRPN，2：TF map->base_link，3：odom仿真）
     // 【参数】智能体位置来源（1：代表动捕、2代表地图、3代表odom-gazebo仿真）
     nh.param<int>("pose_source", pose_source, 1);
     // 【参数】RMTT上方mled字符
@@ -18,6 +19,8 @@ void RMTT_CONTROL::init(ros::NodeHandle& nh)
     nh.param<bool>("is_simulation", is_simulation, false);
     // 【参数】终端是否打印调试信息
     nh.param<bool>("flag_printf", flag_printf, false);
+    // 【参数是否发布TF用于RVIZ显示（默认true；多源TF时需要设为false避免冲突）
+    nh.param<bool>("publish_tf", publish_tf, true);
     nh.param<float>("rmtt_control_param/Kp_xy", rmtt_control_param.pid_xy.Kp, 1.5);
     nh.param<float>("rmtt_control_param/Ki_xy", rmtt_control_param.pid_xy.Ki, 0.05);
     nh.param<float>("rmtt_control_param/Kd_xy", rmtt_control_param.pid_xy.Kd, 0.025);
@@ -115,7 +118,18 @@ void RMTT_CONTROL::init(ros::NodeHandle& nh)
 
     // 智能体状态初始化赋值
     agent_state.header.stamp = ros::Time::now();
-    agent_state.header.frame_id = "world";
+
+    // 根据 pose_source 设置 frame_id，便于上层(ORCA/move_base plugin)判断坐标系
+    if (pose_source == 1) {
+        agent_state.header.frame_id = "mocap";
+    } else if (pose_source == 2) {
+        agent_state.header.frame_id = "map";
+    } else if (pose_source == 3) {
+        agent_state.header.frame_id = "odom";
+    } else {
+        agent_state.header.frame_id = "unknown";
+    }
+
     agent_state.agent_type = agent_type;
     agent_state.agent_id = agent_id;
     agent_state.agent_ip = agent_ip;  
@@ -661,15 +675,14 @@ void RMTT_CONTROL::odom_cb(const nav_msgs::OdometryConstPtr& msg)
 
 void RMTT_CONTROL::timercb_get_map_pose(const ros::TimerEvent &e)
 {
-    // 设定地图框架和程序框架的名称
-    string map_frame = "sunray_swarm/" + agent_name + "/map";        // 地图框架
-    string program_frame = "sunray_swarm/" + agent_name + "/base_link"; // 程序框架
+    // 每台机使用自己独立的 TF：map -> rmtt_i/base_link
+    const std::string map_frame = "map";
+    const std::string program_frame = "rmtt_" + std::to_string(agent_id) + "/base_link";
 
     try
     {
-        // 获取从地图到程序框架的变换
         geometry_msgs::TransformStamped transform_stamped =
-            tf_buffer.lookupTransform(map_frame, program_frame, ros::Time(0));
+                tf_buffer.lookupTransform(map_frame, program_frame, ros::Time(0));
 
         get_odom_time = ros::Time::now(); // 记录时间戳，防止超时
         agent_state.pos[0] = transform_stamped.transform.translation.x;
@@ -677,9 +690,13 @@ void RMTT_CONTROL::timercb_get_map_pose(const ros::TimerEvent &e)
         agent_state.pos[2] = transform_stamped.transform.translation.z;
         agent_state.attitude_q = transform_stamped.transform.rotation;
 
-        Eigen::Quaterniond q_mocap = Eigen::Quaterniond(agent_state.attitude_q.w, agent_state.attitude_q.x, agent_state.attitude_q.y, agent_state.attitude_q.z);
-        Eigen::Vector3d agent_att = quaternion_to_euler(q_mocap);
+        Eigen::Quaterniond q = Eigen::Quaterniond(
+                agent_state.attitude_q.w,
+                agent_state.attitude_q.x,
+                agent_state.attitude_q.y,
+                agent_state.attitude_q.z);
 
+        Eigen::Vector3d agent_att = quaternion_to_euler(q);
         agent_state.att[0] = agent_att.x();
         agent_state.att[1] = agent_att.y();
         agent_state.att[2] = agent_att.z();
@@ -688,9 +705,7 @@ void RMTT_CONTROL::timercb_get_map_pose(const ros::TimerEvent &e)
     }
     catch (const tf2::TransformException& ex)
     {
-        text_info.data = node_name + ": rmtt_" + to_string(agent_id) + " map tf error!";
-        text_info_pub.publish(text_info);
-        cout << RED << text_info.data << TAIL << endl;
+        ROS_WARN_THROTTLE(1.0, "%s: rmtt_%d map tf error: %s", node_name.c_str(), agent_id, ex.what());
     }
 }
 
@@ -811,22 +826,36 @@ void RMTT_CONTROL::timercb_rviz(const ros::TimerEvent &e)
         goal_point_pub.publish(goal_marker);
     }
 
-    // 发布TF用于RVIZ显示
-    static tf2_ros::TransformBroadcaster broadcaster;
-    geometry_msgs::TransformStamped tfs;
-    //  |----头设置
-    tfs.header.frame_id = "world";       //相对于世界坐标系
-    tfs.header.stamp = ros::Time::now(); //时间戳
-    //  |----坐标系 ID
-    tfs.child_frame_id = "rmtt_" + std::to_string(agent_id) + "/base_link"; //子坐标系，智能体的坐标系
-    //  |----坐标系相对信息设置  偏移量  智能体相对于世界坐标系的坐标
-    tfs.transform.translation.x = agent_state.pos[0];
-    tfs.transform.translation.y = agent_state.pos[1];
-    tfs.transform.translation.z = agent_state.pos[2];
-    //  |--------- 四元数设置
-    tfs.transform.rotation = agent_state.attitude_q;
-    //  |--------- 广播器发布数据
-    broadcaster.sendTransform(tfs);
+    // 发布TF用于RVIZ显示（可通过 publish_tf 参数关闭，避免与其它TF来源冲突）
+    if (publish_tf)
+    {
+        static tf2_ros::TransformBroadcaster broadcaster;
+        geometry_msgs::TransformStamped tfs;
+        tfs.header.frame_id = "world";
+        tfs.header.stamp = ros::Time::now();
+        tfs.child_frame_id = "rmtt_" + std::to_string(agent_id) + "/base_link";
+        tfs.transform.translation.x = agent_state.pos[0];
+        tfs.transform.translation.y = agent_state.pos[1];
+        tfs.transform.translation.z = agent_state.pos[2];
+        tfs.transform.rotation = agent_state.attitude_q;
+        broadcaster.sendTransform(tfs);
+    }
+//    // 发布TF用于RVIZ显示
+//    static tf2_ros::TransformBroadcaster broadcaster;
+//    geometry_msgs::TransformStamped tfs;
+//    //  |----头设置
+//    tfs.header.frame_id = "world";       //相对于世界坐标系
+//    tfs.header.stamp = ros::Time::now(); //时间戳
+//    //  |----坐标系 ID
+//    tfs.child_frame_id = "rmtt_" + std::to_string(agent_id) + "/base_link"; //子坐标系，智能体的坐标系
+//    //  |----坐标系相对信息设置  偏移量  智能体相对于世界坐标系的坐标
+//    tfs.transform.translation.x = agent_state.pos[0];
+//    tfs.transform.translation.y = agent_state.pos[1];
+//    tfs.transform.translation.z = agent_state.pos[2];
+//    //  |--------- 四元数设置
+//    tfs.transform.rotation = agent_state.attitude_q;
+//    //  |--------- 广播器发布数据
+//    broadcaster.sendTransform(tfs);
 }
 
 // 限制幅度函数

@@ -55,6 +55,8 @@ class RMTT_CONTROL
         std_msgs::String mled_text;
         // 是否打印 - 通过参数配置
         bool flag_printf;
+        // 是否发布 TF(world -> rmtt_i/base_link) 用于 RVIZ；若系统已有其它 TF 来源发布 base_link，请关闭避免冲突
+        bool publish_tf{true};
 
         // 地面站接管，true代表地面站接管
         bool gs_control{false};

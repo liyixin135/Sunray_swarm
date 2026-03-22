@@ -1,0 +1,89 @@
+<launch>
+    <!-- Multi-agent move_base (4 UAVs)
+         Requires TF tree already exists:
+           map -> rmtt_i/odom -> rmtt_i/base_link
+         Publishes:
+           /sunray_swarm/rmtt_i/cmd_vel_nav (via remap from cmd_vel)
+         Subscribes:
+           /sunray_swarm/rmtt_i/odom (via remap to odom)
+    -->
+
+    <!-- rmtt_1 -->
+    <group ns="rmtt_1">
+        <!-- Load ALL move_base-related params into this instance's private namespace -->
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/move_base_params.yaml" />
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/local_costmap.yaml" />
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/global_costmap.yaml" />
+        <rosparam command="load" ns="move_base/local_costmap" file="$(find sunray_swarm_sim)/launch_navigation/params/costmap_common.yaml" />
+        <rosparam command="load" ns="move_base/global_costmap" file="$(find sunray_swarm_sim)/launch_navigation/params/costmap_common.yaml" />
+
+        <!-- Override frames for rmtt_1 (IMPORTANT: under move_base/*) -->
+        <param name="move_base/local_costmap/global_frame" value="rmtt_1/odom" />
+        <param name="move_base/local_costmap/robot_base_frame" value="rmtt_1/base_link" />
+        <param name="move_base/global_costmap/global_frame" value="map" />
+        <param name="move_base/global_costmap/robot_base_frame" value="rmtt_1/base_link" />
+
+        <node pkg="move_base" type="move_base" name="move_base" output="screen">
+            <remap from="cmd_vel" to="/sunray_swarm/rmtt_1/cmd_vel_nav" />
+            <remap from="odom" to="/sunray_swarm/rmtt_1/odom" />
+        </node>
+    </group>
+
+    <!-- rmtt_2 -->
+    <group ns="rmtt_2">
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/move_base_params.yaml" />
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/local_costmap.yaml" />
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/global_costmap.yaml" />
+        <rosparam command="load" ns="move_base/local_costmap" file="$(find sunray_swarm_sim)/launch_navigation/params/costmap_common.yaml" />
+        <rosparam command="load" ns="move_base/global_costmap" file="$(find sunray_swarm_sim)/launch_navigation/params/costmap_common.yaml" />
+
+        <param name="move_base/local_costmap/global_frame" value="rmtt_2/odom" />
+        <param name="move_base/local_costmap/robot_base_frame" value="rmtt_2/base_link" />
+        <param name="move_base/global_costmap/global_frame" value="map" />
+        <param name="move_base/global_costmap/robot_base_frame" value="rmtt_2/base_link" />
+
+        <node pkg="move_base" type="move_base" name="move_base" output="screen">
+            <remap from="cmd_vel" to="/sunray_swarm/rmtt_2/cmd_vel_nav" />
+            <remap from="odom" to="/sunray_swarm/rmtt_2/odom" />
+        </node>
+    </group>
+
+    <!-- rmtt_3 -->
+    <group ns="rmtt_3">
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/move_base_params.yaml" />
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/local_costmap.yaml" />
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/global_costmap.yaml" />
+        <rosparam command="load" ns="move_base/local_costmap" file="$(find sunray_swarm_sim)/launch_navigation/params/costmap_common.yaml" />
+        <rosparam command="load" ns="move_base/global_costmap" file="$(find sunray_swarm_sim)/launch_navigation/params/costmap_common.yaml" />
+
+        <param name="move_base/local_costmap/global_frame" value="rmtt_3/odom" />
+        <param name="move_base/local_costmap/robot_base_frame" value="rmtt_3/base_link" />
+        <param name="move_base/global_costmap/global_frame" value="map" />
+        <param name="move_base/global_costmap/robot_base_frame" value="rmtt_3/base_link" />
+
+        <node pkg="move_base" type="move_base" name="move_base" output="screen">
+            <remap from="cmd_vel" to="/sunray_swarm/rmtt_3/cmd_vel_nav" />
+            <remap from="odom" to="/sunray_swarm/rmtt_3/odom" />
+        </node>
+    </group>
+
+    <!-- rmtt_4 -->
+    <group ns="rmtt_4">
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/move_base_params.yaml" />
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/local_costmap.yaml" />
+        <rosparam command="load" ns="move_base" file="$(find sunray_swarm_sim)/launch_navigation/params/global_costmap.yaml" />
+        <rosparam command="load" ns="move_base/local_costmap" file="$(find sunray_swarm_sim)/launch_navigation/params/costmap_common.yaml" />
+        <rosparam command="load" ns="move_base/global_costmap" file="$(find sunray_swarm_sim)/launch_navigation/params/costmap_common.yaml" />
+
+        <param name="move_base/local_costmap/global_frame" value="rmtt_4/odom" />
+        <param name="move_base/local_costmap/robot_base_frame" value="rmtt_4/base_link" />
+        <param name="move_base/global_costmap/global_frame" value="map" />
+        <param name="move_base/global_costmap/robot_base_frame" value="rmtt_4/base_link" />
+
+        <node pkg="move_base" type="move_base" name="move_base" output="screen">
+            <remap from="cmd_vel" to="/sunray_swarm/rmtt_4/cmd_vel_nav" />
+            <remap from="odom" to="/sunray_swarm/rmtt_4/odom" />
+        </node>
+    </group>
+
+</launch>

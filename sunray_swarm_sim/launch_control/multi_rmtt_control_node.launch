@@ -1,6 +1,6 @@
 <launch>
     <!-- 1 for vrpn，2 for map，3 for odom -->
-    <arg name="pose_source" default="3"/>
+    <arg name="pose_source" default="2"/>
 
     <!-- 1号无人机 -->
     <!-- 第一个节点：启动1号无人机控制节点 - rmtt_control_node_1 -->
@@ -8,6 +8,7 @@
         <param name="agent_id" type="int" value="1" />
         <param name="is_simulation" type="bool" value="true" />
         <param name="pose_source" value="$(arg pose_source)" />
+        <param name="publish_tf" type="bool" value="false" />
     </node>
 
     <!-- 2号无人机 -->
@@ -16,6 +17,7 @@
         <param name="agent_id" type="int" value="2" />
         <param name="is_simulation" type="bool" value="true" />
         <param name="pose_source" value="$(arg pose_source)" />
+        <param name="publish_tf" type="bool" value="false" />
     </node>
 
     <!-- 3号无人机 -->
@@ -24,6 +26,7 @@
         <param name="agent_id" type="int" value="3" />
         <param name="is_simulation" type="bool" value="true" />
         <param name="pose_source" value="$(arg pose_source)" />
+        <param name="publish_tf" type="bool" value="false" />
     </node>
 
     <!-- 4号无人机 -->
@@ -32,6 +35,7 @@
         <param name="agent_id" type="int" value="4" />
         <param name="is_simulation" type="bool" value="true" />
         <param name="pose_source" value="$(arg pose_source)" />
+        <param name="publish_tf" type="bool" value="false" />
     </node>
 </launch>
 
