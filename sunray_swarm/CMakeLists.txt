@@ -133,6 +133,14 @@ target_link_libraries(swarm_circle ${catkin_LIBRARIES})
 add_executable(swarm_test demo_swarm/swarm_test.cpp)
 add_dependencies(swarm_test sunray_swarm_gencpp)
 target_link_libraries(swarm_test ${catkin_LIBRARIES})
+## SWARM_DEMO - 发送move_base目标点
+add_executable(swarm_nav_goal_pub demo_swarm/swarm_nav_goal_pub.cpp)
+add_dependencies(swarm_nav_goal_pub sunray_swarm_gencpp)
+target_link_libraries(swarm_nav_goal_pub ${catkin_LIBRARIES})
+## SWARM_DEMO - init orca
+add_executable(orca_init demo_swarm/orca_init.cpp)
+add_dependencies(orca_init sunray_swarm_gencpp)
+target_link_libraries(orca_init ${catkin_LIBRARIES})
 ## SWARM_DEMO - 集群绕8
 add_executable(swarm_lemniscate demo_swarm/swarm_lemniscate.cpp)
 add_dependencies(swarm_lemniscate sunray_swarm_gencpp)

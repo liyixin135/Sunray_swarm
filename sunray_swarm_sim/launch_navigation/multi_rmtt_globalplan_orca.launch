@@ -1,0 +1,49 @@
+<launch>
+    <!-- 1) 启动你原本的 ORCA 仿真/控制整套 -->
+    <include file="$(find sunray_swarm_sim)/launch_orca/multi_rmtt_orca_sim.launch" />
+
+    <!-- ORCA 启动/初始化命令：给 /sunray_swarm/rmtt/orca_cmd 发一次 SET_HOME -->
+    <node pkg="sunray_swarm" type="orca_init" name="orca_init" output="screen">
+        <param name="agent_prefix" value="rmtt"/>
+        <param name="delay" value="5.0"/>
+        <param name="cmd" value="0"/> <!-- SET_HOME -->
+    </node>
+
+    <!-- 2) 全局 Path -> ORCA goal_point 的桥接（rmtt_1..rmtt_4） -->
+    <node pkg="sunray_nav_plugins" type="path_to_orca_goal_point.py" name="rmtt_1_path_to_orca_goal" output="screen">
+        <param name="plan_topic"  value="/rmtt_1/move_base/AStarGlobalPlanner/plan" />
+        <param name="state_topic" value="/sunray_swarm/rmtt_1/agent_state" />
+        <param name="goal_topic"  value="/sunray_swarm/rmtt_1/goal_point" />
+        <param name="lookahead"   value="1.5" />
+        <param name="pub_hz"      value="10.0" />
+        <param name="goal_tolerance" value="0.25" />
+    </node>
+
+    <node pkg="sunray_nav_plugins" type="path_to_orca_goal_point.py" name="rmtt_2_path_to_orca_goal" output="screen">
+        <param name="plan_topic"  value="/rmtt_2/move_base/AStarGlobalPlanner/plan" />
+        <param name="state_topic" value="/sunray_swarm/rmtt_2/agent_state" />
+        <param name="goal_topic"  value="/sunray_swarm/rmtt_2/goal_point" />
+        <param name="lookahead"   value="1.5" />
+        <param name="pub_hz"      value="10.0" />
+        <param name="goal_tolerance" value="0.25" />
+    </node>
+
+    <node pkg="sunray_nav_plugins" type="path_to_orca_goal_point.py" name="rmtt_3_path_to_orca_goal" output="screen">
+        <param name="plan_topic"  value="/rmtt_3/move_base/AStarGlobalPlanner/plan" />
+        <param name="state_topic" value="/sunray_swarm/rmtt_3/agent_state" />
+        <param name="goal_topic"  value="/sunray_swarm/rmtt_3/goal_point" />
+        <param name="lookahead"   value="1.5" />
+        <param name="pub_hz"      value="10.0" />
+        <param name="goal_tolerance" value="0.25" />
+    </node>
+
+    <node pkg="sunray_nav_plugins" type="path_to_orca_goal_point.py" name="rmtt_4_path_to_orca_goal" output="screen">
+        <param name="plan_topic"  value="/rmtt_4/move_base/AStarGlobalPlanner/plan" />
+        <param name="state_topic" value="/sunray_swarm/rmtt_4/agent_state" />
+        <param name="goal_topic"  value="/sunray_swarm/rmtt_4/goal_point" />
+        <param name="lookahead"   value="1.5" />
+        <param name="pub_hz"      value="10.0" />
+        <param name="goal_tolerance" value="0.25" />
+    </node>
+
+</launch>

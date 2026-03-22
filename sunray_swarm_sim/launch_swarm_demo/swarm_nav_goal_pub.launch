@@ -1,0 +1,24 @@
+<launch>
+    <arg name="agent_num" default="4"/>
+
+    <node pkg="sunray_swarm" type="swarm_nav_goal_pub" name="swarm_nav_goal_pub" output="screen">
+        <param name="agent_num" value="$(arg agent_num)"/>
+
+        <!-- /rmtt_1/... -->
+        <param name="agent_prefix" value="rmtt"/>
+        <param name="goal_topic" value="move_base_simple/goal"/>
+        <param name="frame_id" value="map"/>
+
+        <!-- 约等于 rostopic pub -1 latch 3 秒 -->
+        <param name="repeat_times" value="864000"/>
+        <param name="repeat_hz" value="10.0"/>
+        <param name="connect_wait" value="1.0"/>
+
+        <rosparam param="goals">
+            - [-2.0, -2.0, 0.0]
+            - [-2.0, 2.0, 0.0]
+            - [2.0, 2.0, 0.0]
+            - [2.0, -2.0, 0.0]
+        </rosparam>
+    </node>
+</launch>
