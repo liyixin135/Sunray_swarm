@@ -1,10 +1,15 @@
-global_frame: map
-robot_base_frame: base_link
-transform_tolerance: 0.5
+# Common costmap parameters shared by local_costmap and global_costmap
 
-update_frequency: 5.0
-publish_frequency: 2.0
+# If你的机器人有实际半径/footprint，建议二选一配置：
+# robot_radius: 0.2
+# footprint: [[0.2,0.2],[0.2,-0.2],[-0.2,-0.2],[-0.2,0.2]]
 
-# Minimal: no obstacle sources configured yet (simulation has no laser topic wired in).
-plugins: []
+# 只靠静态地图避障时，关键就是 inflation，把黑圈“膨胀”出安全距离
+inflation_layer:
+  inflation_radius: 0.8
+  cost_scaling_factor: 10.0
 
+# Static layer 一般不用特别配；如果你 map topic 不是 /map 可在此指定：
+# static_layer:
+#   map_topic: /map
+#   subscribe_to_updates: false

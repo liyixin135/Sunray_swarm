@@ -1,0 +1,20 @@
+<launch>
+    <!-- 1) publish /map from map.yaml + map.pgm -->
+    <node pkg="map_server" type="map_server" name="map_server"
+          args="$(find sunray_swarm_sim)/maps/map.yaml"
+          output="screen" />
+
+    <!-- 2) publish TF: world -> map -->
+    <node pkg="tf" type="static_transform_publisher" name="world_to_map_tf"
+          args="0 0 0 0 0 0 world map 10" />
+
+    <!-- 3) relay /map -> /rmtt_i/map (because your move_base subscribes to /rmtt_i/map) -->
+    <node pkg="topic_tools" type="relay" name="relay_map_rmtt_1"
+          args="/map /rmtt_1/map" output="screen" />
+    <node pkg="topic_tools" type="relay" name="relay_map_rmtt_2"
+          args="/map /rmtt_2/map" output="screen" />
+    <node pkg="topic_tools" type="relay" name="relay_map_rmtt_3"
+          args="/map /rmtt_3/map" output="screen" />
+    <node pkg="topic_tools" type="relay" name="relay_map_rmtt_4"
+          args="/map /rmtt_4/map" output="screen" />
+</launch>

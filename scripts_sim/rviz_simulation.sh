@@ -23,3 +23,4 @@ gnome-terminal \
   --tab -e 'bash -c "sleep 2.0; roslaunch sunray_swarm_sim multi_rmtt_control_node.launch pose_source:=2; exec bash"' \
   --tab -e 'bash -c "sleep 3.0; roslaunch sunray_swarm_sim multi_move_base.launch; exec bash"' \
   --tab -e 'bash -c "sleep 4.0; roslaunch sunray_swarm_sim multi_rmtt_globalplan_orca.launch; exec bash"' \
+  --tab -e 'bash -c "sleep 4.0; roslaunch sunray_swarm_sim map_world.launch; exec bash"' \

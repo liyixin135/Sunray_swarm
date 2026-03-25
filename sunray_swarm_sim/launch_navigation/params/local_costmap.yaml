@@ -1,10 +1,18 @@
 local_costmap:
-  global_frame: odom
+  # 对你的 TF 树最稳：直接用 map（避免不存在的 odom frame）
+  global_frame: map
   robot_base_frame: base_link
+  transform_tolerance: 0.5
+
+  update_frequency: 5.0
+  publish_frequency: 2.0
+
+  static_map: true
   rolling_window: true
   width: 10.0
   height: 10.0
   resolution: 0.05
-  origin_x: 0.0
-  origin_y: 0.0
 
+  plugins:
+    - {name: static_layer,    type: "costmap_2d::StaticLayer"}
+    - {name: inflation_layer, type: "costmap_2d::InflationLayer"}

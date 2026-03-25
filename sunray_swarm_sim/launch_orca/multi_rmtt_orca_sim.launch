@@ -1,8 +1,16 @@
 <launch>
         <node pkg="sunray_swarm" name="orca_node_rmtt" type="orca_node" output="screen">
+<!--                <rosparam param="static_map_stop">-->
+<!--                        enable: true-->
+<!--                        safety_radius: 2.0-->
+<!--                        predict_time: 0.8-->
+<!--                        predict_dt: 0.1-->
+<!--                        occupied_threshold: 50-->
+<!--                        treat_unknown_as_occupied: true-->
+<!--                </rosparam>-->
                 <param name="agent_type" type="int" value="0" />
                 <param name="agent_num" value="4" />
-                <param name="agent_height" type="double" value="1.0" />	
+                <param name="agent_height" type="double" value="1.0" />
         </node>
 </launch>
 
