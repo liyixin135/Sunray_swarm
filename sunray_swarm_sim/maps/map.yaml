@@ -1,6 +1,6 @@
 image: map.pgm
 resolution: 0.020000 #填写分辨率
 origin: [-5.000000, -5.000000, 0.000000] #初始位置，地图的原点相对于世界坐标系的位置
-negate: 0				#例如想让小车在地图左下角，就填上小车的odom坐标系
-occupied_thresh: 0.65			#下的位置就行了
+negate: 0 #例如想让小车在地图左下角，就填上小车的odom坐标系
+occupied_thresh: 0.65 #下的位置就行了
 free_thresh: 0.196

@@ -1,14 +1,23 @@
 <launch>
-    <!-- 1) publish /map from map.yaml + map.pgm -->
-    <node pkg="map_server" type="map_server" name="map_server"
+    <!-- A) Raw map: for visualization only -->
+    <node pkg="map_server" type="map_server" name="map_server_raw"
           args="$(find sunray_swarm_sim)/maps/map.yaml"
-          output="screen" />
+          output="screen">
+        <remap from="map" to="map_raw"/>
+    </node>
 
-    <!-- 2) publish TF: world -> map -->
+    <!-- B) Inflated map: for planning/costmap -->
+    <node pkg="map_server" type="map_server" name="map_server_inflated"
+          args="$(find sunray_swarm_sim)/maps/map_inflated_0.50m.yaml"
+          output="screen">
+        <remap from="map" to="map"/>
+    </node>
+
+    <!-- TF: world -> map -->
     <node pkg="tf" type="static_transform_publisher" name="world_to_map_tf"
           args="0 0 0 0 0 0 world map 10" />
 
-    <!-- 3) relay /map -> /rmtt_i/map (because your move_base subscribes to /rmtt_i/map) -->
+    <!-- relay inflated /map -> /rmtt_i/map (move_base/ORCA use these) -->
     <node pkg="topic_tools" type="relay" name="relay_map_rmtt_1"
           args="/map /rmtt_1/map" output="screen" />
     <node pkg="topic_tools" type="relay" name="relay_map_rmtt_2"
